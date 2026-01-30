@@ -1,0 +1,262 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  DRIVER
+}
+
+enum IDCardType {
+  ID_CARD
+  PASSPORT
+}
+
+enum DepositStatus {
+  NONE
+  PAID
+  HELD
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  ELECTRIC
+  HYBRID
+}
+
+enum Transmission {
+  MANUAL
+  AUTO
+}
+
+enum VehicleStatus {
+  AVAILABLE
+  RENTED
+  MAINTENANCE
+  DAMAGED
+  RESERVED
+}
+
+enum BookingStatus {
+  PENDING
+  APPROVED
+  ONGOING
+  COMPLETED
+  CANCELLED
+  OVERDUE
+}
+
+enum PaymentMethod {
+  CARD
+  MOBILE_MONEY
+  CASH
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+enum MaintenanceType {
+  SERVICE
+  REPAIR
+  INSPECTION
+}
+
+// ============================================================================
+// CORE ENTITIES
+// ============================================================================
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  fullName            String
+  phone               String
+  role                UserRole  @default(CUSTOMER)
+  drivingLicenseNumber String?
+  licenseExpiry       DateTime?
+  verified            Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Relations
+  customerProfile     CustomerProfile?
+  bookings            Booking[]
+  damageReports       DamageReport[]
+  payments            Payment[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model CustomerProfile {
+  id              String        @id @default(cuid())
+  userId          String        @unique
+  address         String?
+  idCardNumber    String?
+  idCardType      IDCardType?
+  depositStatus   DepositStatus @default(NONE)
+  rating          Float?        @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Location {
+  id              String    @id @default(cuid())
+  name            String
+  address         String
+  latitude        Float?
+  longitude       Float?
+  operatingHours  String?   // JSON string for flexibility
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  vehicles        Vehicle[]
+  pickupBookings  Booking[] @relation("pickupLocation")
+  returnBookings  Booking[] @relation("returnLocation")
+
+  @@index([name])
+}
+
+model Vehicle {
+  id              String        @id @default(cuid())
+  make            String
+  model           String
+  year            Int
+  licensePlate    String        @unique
+  vin             String        @unique
+  color           String?
+  fuelType        FuelType      @default(PETROL)
+  transmission    Transmission  @default(AUTO)
+  seats           Int           @default(5)
+  dailyRate       Decimal       @db.Decimal(10, 2)
+  hourlyRate      Decimal?      @db.Decimal(10, 2)
+  locationId      String
+  status          VehicleStatus @default(AVAILABLE)
+  mileage         Int           @default(0)
+  images          String[]      // JSON array of image URLs
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  location        Location      @relation(fields: [locationId], references: [id])
+  bookings        Booking[]
+  maintenanceRecords MaintenanceRecord[]
+
+  @@index([locationId])
+  @@index([status])
+  @@index([licensePlate])
+  @@index([make, model])
+}
+
+model Booking {
+  id                  String        @id @default(cuid())
+  userId              String
+  vehicleId           String
+  startDateTime       DateTime
+  endDateTime         DateTime
+  pickupLocationId    String
+  returnLocationId    String
+  status              BookingStatus @default(PENDING)
+  totalPrice          Decimal       @db.Decimal(10, 2)
+  actualReturnDateTime DateTime?
+  notes               String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relations
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle             Vehicle       @relation(fields: [vehicleId], references: [id])
+  pickupLocation      Location      @relation("pickupLocation", fields: [pickupLocationId], references: [id])
+  returnLocation      Location      @relation("returnLocation", fields: [returnLocationId], references: [id])
+  payments            Payment[]
+  damageReports       DamageReport[]
+
+  @@index([userId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([startDateTime, endDateTime])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  bookingId       String
+  userId          String
+  amount          Decimal       @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  transactionId   String?       @unique
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  booking         Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([userId])
+  @@index([status])
+  @@index([transactionId])
+}
+
+model DamageReport {
+  id              String    @id @default(cuid())
+  bookingId       String
+  reporterId      String
+  description     String
+  images          String[]  // JSON array of image URLs
+  costEstimate    Decimal?  @db.Decimal(10, 2)
+  resolved        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  booking         Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  reporter        User      @relation(fields: [reporterId], references: [id])
+
+  @@index([bookingId])
+  @@index([reporterId])
+  @@index([resolved])
+}
+
+model MaintenanceRecord {
+  id              String          @id @default(cuid())
+  vehicleId       String
+  date            DateTime        @default(now())
+  type            MaintenanceType
+  cost            Decimal         @db.Decimal(10, 2)
+  mileageAtTime   Int
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  vehicle         Vehicle         @relation(fields: [vehicleId], references: [id])
+
+  @@index([vehicleId])
+  @@index([date])
+}
