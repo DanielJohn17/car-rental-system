@@ -2,111 +2,179 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CustomerProfile } from './entities/customer-profile.entity';
-import { CustomerProfileRepository } from './repositories/customer-profile.repository';
+import * as bcryptjs from 'bcryptjs';
+import { User, UserRole } from '../auth/entities/user.entity';
 import {
-  CreateCustomerProfileDto,
-  UpdateCustomerProfileDto,
-  CustomerProfileResponseDto,
-} from './dtos/customer-profile.dto';
+  CreateStaffDto,
+  UpdateStaffDto,
+  StaffResponseDto,
+  StaffListResponseDto,
+} from './dtos/staff.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(CustomerProfile)
-    private readonly customerProfileRepository: CustomerProfileRepository,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
-  async createCustomerProfile(
-    createCustomerProfileDto: CreateCustomerProfileDto,
-  ): Promise<CustomerProfileResponseDto> {
-    const existingProfile =
-      await this.customerProfileRepository.findByUserId(
-        createCustomerProfileDto.userId,
-      );
+  async createStaffMember(
+    createStaffDto: CreateStaffDto,
+    adminId: string,
+  ): Promise<StaffResponseDto> {
+    const { email, password, fullName, phone, role } = createStaffDto;
 
-    if (existingProfile) {
-      throw new BadRequestException(
-        'Customer profile already exists for this user',
-      );
+    // Check if user already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Email already in use');
     }
 
-    const profile = await this.customerProfileRepository.createCustomerProfile(
-      createCustomerProfileDto,
-    );
+    if (password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
 
-    return this.mapToResponseDto(profile);
+    // Hash password
+    const hashedPassword = await bcryptjs.hash(password, 10);
+
+    // Create staff member
+    const staffMember = this.userRepository.create({
+      email,
+      passwordHash: hashedPassword,
+      fullName,
+      phone,
+      role,
+      createdBy: adminId,
+    });
+
+    await this.userRepository.save(staffMember);
+
+    return this.mapToResponseDto(staffMember);
   }
 
-  async getCustomerProfile(userId: string): Promise<CustomerProfileResponseDto> {
-    const profile =
-      await this.customerProfileRepository.findByUserId(userId);
+  async getStaffMembers(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<StaffListResponseDto> {
+    const [staff, total] = await this.userRepository.findAndCount({
+      where: [
+        { role: UserRole.ADMIN },
+        { role: UserRole.SALES },
+      ],
+      skip: (page - 1) * limit,
+      take: limit,
+      order: { createdAt: 'DESC' },
+    });
 
-    if (!profile) {
-      throw new NotFoundException(
-        `Customer profile not found for user ${userId}`,
-      );
-    }
-
-    return this.mapToResponseDto(profile);
-  }
-
-  async getCustomerProfileById(id: string): Promise<CustomerProfileResponseDto> {
-    const profile = await this.customerProfileRepository.findByIdWithUser(id);
-
-    if (!profile) {
-      throw new NotFoundException(`Customer profile with id ${id} not found`);
-    }
-
-    return this.mapToResponseDto(profile);
-  }
-
-  async updateCustomerProfile(
-    id: string,
-    updateCustomerProfileDto: UpdateCustomerProfileDto,
-  ): Promise<CustomerProfileResponseDto> {
-    const profile = await this.customerProfileRepository.findByIdWithUser(id);
-
-    if (!profile) {
-      throw new NotFoundException(`Customer profile with id ${id} not found`);
-    }
-
-    const updated = await this.customerProfileRepository.updateCustomerProfile(
-      id,
-      updateCustomerProfileDto,
-    );
-
-    if (!updated) {
-      throw new NotFoundException(`Customer profile with id ${id} not found`);
-    }
-
-    return this.mapToResponseDto(updated);
-  }
-
-  async deleteCustomerProfile(id: string): Promise<void> {
-    const profile = await this.customerProfileRepository.findByIdWithUser(id);
-
-    if (!profile) {
-      throw new NotFoundException(`Customer profile with id ${id} not found`);
-    }
-
-    await this.customerProfileRepository.delete(id);
-  }
-
-  private mapToResponseDto(profile: CustomerProfile): CustomerProfileResponseDto {
     return {
-      id: profile.id,
-      userId: profile.userId,
-      address: profile.address,
-      idCardNumber: profile.idCardNumber,
-      idCardType: profile.idCardType,
-      depositStatus: profile.depositStatus,
-      rating: profile.rating,
-      createdAt: profile.createdAt,
-      updatedAt: profile.updatedAt,
+      data: staff.map((s) => this.mapToResponseDto(s)),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async getStaffById(id: string): Promise<StaffResponseDto> {
+    const staff = await this.userRepository.findOne({ where: { id } });
+
+    if (!staff) {
+      throw new NotFoundException(`Staff member with ID ${id} not found`);
+    }
+
+    return this.mapToResponseDto(staff);
+  }
+
+  async updateStaffMember(
+    id: string,
+    updateStaffDto: UpdateStaffDto,
+    requestingUserId: string,
+  ): Promise<StaffResponseDto> {
+    const staff = await this.userRepository.findOne({ where: { id } });
+
+    if (!staff) {
+      throw new NotFoundException(`Staff member with ID ${id} not found`);
+    }
+
+    // Allow users to update themselves, or admins to update anyone
+    const requestingUser = await this.userRepository.findOne({
+      where: { id: requestingUserId },
+    });
+
+    if (!requestingUser) {
+      throw new NotFoundException('Requesting user not found');
+    }
+
+    if (
+      requestingUserId !== id &&
+      requestingUser.role !== UserRole.ADMIN
+    ) {
+      throw new ForbiddenException(
+        'You can only update your own profile or be an admin',
+      );
+    }
+
+    // Update fields
+    if (updateStaffDto.fullName) {
+      staff.fullName = updateStaffDto.fullName;
+    }
+    if (updateStaffDto.phone) {
+      staff.phone = updateStaffDto.phone;
+    }
+
+    await this.userRepository.save(staff);
+
+    return this.mapToResponseDto(staff);
+  }
+
+  async deleteStaffMember(
+    id: string,
+    adminId: string,
+  ): Promise<{ message: string }> {
+    const staff = await this.userRepository.findOne({ where: { id } });
+
+    if (!staff) {
+      throw new NotFoundException(`Staff member with ID ${id} not found`);
+    }
+
+    // Only admin can delete staff
+    const admin = await this.userRepository.findOne({ where: { id: adminId } });
+
+    if (!admin) {
+      throw new NotFoundException('Admin user not found');
+    }
+
+    if (admin.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admins can delete staff members');
+    }
+
+    // Don't allow deleting yourself
+    if (id === adminId) {
+      throw new BadRequestException('Cannot delete your own account');
+    }
+
+    await this.userRepository.delete(id);
+
+    return { message: 'Staff member deleted successfully' };
+  }
+
+  private mapToResponseDto(user: User): StaffResponseDto {
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      phone: user.phone,
+      role: user.role,
+      verified: user.verified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      createdBy: user.createdBy,
     };
   }
 }

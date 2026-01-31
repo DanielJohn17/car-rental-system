@@ -13,14 +13,17 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiConflictResponse,
   ApiUnauthorizedResponse,
+  ApiConflictResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, AuthResponseDto, RefreshTokenDto } from './dtos';
+import { LoginDto, AuthResponseDto, AdminRegisterDto, StaffRegisterDto } from './dtos';
 import { JwtGuard } from './guards/jwt.guard';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
+import { createRoleGuard } from './guards/role.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { UserRole } from './entities/user.entity';
 
 export interface JwtPayload {
   sub: string;
@@ -33,22 +36,55 @@ export interface JwtPayload {
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @ApiOperation({ summary: 'Register a new user' })
+  @Post('register/admin')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Register first admin account (initial setup)',
+    description:
+      'Register the first admin account without authentication. If admin already exists, provide registration token.',
+  })
   @ApiResponse({
     status: HttpStatus.CREATED,
-    description: 'User registered successfully',
+    description: 'Admin registered successfully',
     type: AuthResponseDto,
   })
   @ApiConflictResponse({ description: 'Email already in use' })
-  @Post('register')
-  @HttpCode(HttpStatus.CREATED)
-  async register(
-    @Body(ValidationPipe) registerDto: RegisterDto,
+  @ApiBadRequestResponse({ description: 'Admin already exists or invalid password' })
+  @ApiUnauthorizedResponse({ description: 'Invalid registration token' })
+  async registerAdmin(
+    @Body(ValidationPipe) adminRegisterDto: AdminRegisterDto,
   ): Promise<AuthResponseDto> {
-    return this.authService.register(registerDto);
+    return this.authService.registerAdmin(adminRegisterDto);
   }
 
-  @ApiOperation({ summary: 'Login with email and password' })
+  @Post('register/staff')
+  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Register new sales staff member (Admin only)',
+    description: 'Admin can register new sales staff members.',
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Staff member registered successfully',
+    type: AuthResponseDto,
+  })
+  @ApiConflictResponse({ description: 'Email already in use' })
+  @ApiBadRequestResponse({ description: 'Invalid password' })
+  @ApiUnauthorizedResponse({ description: 'Invalid token or not admin' })
+  async registerStaff(
+    @Body(ValidationPipe) staffRegisterDto: StaffRegisterDto,
+    @CurrentUser() user: JwtPayload,
+  ): Promise<AuthResponseDto> {
+    return this.authService.registerStaff(user.sub, staffRegisterDto);
+  }
+
+  @ApiOperation({
+    summary: 'Login for admin and sales staff (email/password)',
+    description:
+      'Only admin and sales team members can login. Customers do not have accounts.',
+  })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'User logged in successfully',

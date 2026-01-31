@@ -7,11 +7,11 @@ describe('UsersController', () => {
   let service: UsersService;
 
   const mockUsersService = {
-    createCustomerProfile: jest.fn(),
-    getCustomerProfile: jest.fn(),
-    getCustomerProfileById: jest.fn(),
-    updateCustomerProfile: jest.fn(),
-    deleteCustomerProfile: jest.fn(),
+    createStaffMember: jest.fn(),
+    getStaffMembers: jest.fn(),
+    getStaffById: jest.fn(),
+    updateStaffMember: jest.fn(),
+    deleteStaffMember: jest.fn(),
   };
 
   beforeEach(async () => {

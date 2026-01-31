@@ -15,6 +15,7 @@ import { Payment } from '../../payments/entities/payment.entity';
 export enum UserRole {
   CUSTOMER = 'CUSTOMER',
   ADMIN = 'ADMIN',
+  SALES = 'SALES',
   DRIVER = 'DRIVER',
 }
 
@@ -50,13 +51,16 @@ export class User {
   @Column({ nullable: true, type: 'text' })
   refreshToken: string | null;
 
+  @Column({ nullable: true, type: 'uuid' })
+  createdBy: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
 
-  // Relations
+  // Relations (kept for backward compatibility, but only used for staff)
   @OneToOne(() => CustomerProfile, (profile) => profile.user, {
     cascade: true,
     nullable: true,

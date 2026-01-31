@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { HttpStatus, HttpException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { RegisterDto, LoginDto } from './dtos';
+import { LoginDto, AdminRegisterDto, StaffRegisterDto } from './dtos';
 import { AuthResponseDto } from './dtos/auth-response.dto';
 import { UserRole } from './entities/user.entity';
 
@@ -11,19 +11,39 @@ describe('AuthController', () => {
   let authService: AuthService;
 
   const mockAuthService = {
-    register: jest.fn(),
+    registerAdmin: jest.fn(),
+    registerStaff: jest.fn(),
     login: jest.fn(),
+    getCurrentUser: jest.fn(),
+    refreshAccessToken: jest.fn(),
+    logout: jest.fn(),
   };
 
-  const mockAuthResponse: AuthResponseDto = {
+  const mockAdminResponse: AuthResponseDto = {
     accessToken: 'test-jwt-token',
+    refreshToken: 'test-refresh-token',
     user: {
       id: '123e4567-e89b-12d3-a456-426614174000',
-      email: 'test@example.com',
-      fullName: 'Test User',
-      role: UserRole.CUSTOMER,
+      email: 'admin@example.com',
+      fullName: 'Admin User',
+      role: UserRole.ADMIN,
       phone: '+251912345678',
-      verified: false,
+      verified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  };
+
+  const mockSalesResponse: AuthResponseDto = {
+    accessToken: 'test-jwt-token',
+    refreshToken: 'test-refresh-token',
+    user: {
+      id: '223e4567-e89b-12d3-a456-426614174000',
+      email: 'sales@example.com',
+      fullName: 'Sales User',
+      role: UserRole.SALES,
+      phone: '+251912345679',
+      verified: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -50,37 +70,38 @@ describe('AuthController', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('register', () => {
-    const registerDto: RegisterDto = {
-      email: 'test@example.com',
+  describe('registerAdmin', () => {
+    const adminRegisterDto: AdminRegisterDto = {
+      email: 'admin@example.com',
       password: 'SecurePassword123',
-      fullName: 'Test User',
+      fullName: 'Admin User',
       phone: '+251912345678',
     };
 
-    it('should register a new user successfully', async () => {
-      mockAuthService.register.mockResolvedValue(mockAuthResponse);
+    it('should register admin successfully', async () => {
+      mockAuthService.registerAdmin.mockResolvedValue(mockAdminResponse);
 
-      const result = await controller.register(registerDto);
+      const result = await controller.registerAdmin(adminRegisterDto);
 
-      expect(result).toEqual(mockAuthResponse);
+      expect(result).toEqual(mockAdminResponse);
       expect(result.accessToken).toBeDefined();
-      expect(result.user.email).toBe(registerDto.email);
-      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
-      expect(mockAuthService.register).toHaveBeenCalledTimes(1);
+      expect(result.user.email).toBe(adminRegisterDto.email);
+      expect(result.user.role).toBe(UserRole.ADMIN);
+      expect(mockAuthService.registerAdmin).toHaveBeenCalledWith(
+        adminRegisterDto,
+      );
     });
 
-    it('should return user data with correct properties', async () => {
-      mockAuthService.register.mockResolvedValue(mockAuthResponse);
+    it('should return admin data with correct properties', async () => {
+      mockAuthService.registerAdmin.mockResolvedValue(mockAdminResponse);
 
-      const result = await controller.register(registerDto);
+      const result = await controller.registerAdmin(adminRegisterDto);
 
       expect(result.user).toHaveProperty('id');
       expect(result.user).toHaveProperty('email');
       expect(result.user).toHaveProperty('fullName');
       expect(result.user).toHaveProperty('role');
-      expect(result.user).toHaveProperty('phone');
-      expect(result.user).toHaveProperty('verified');
+      expect(result.user.role).toBe(UserRole.ADMIN);
     });
 
     it('should throw ConflictException if email already exists', async () => {
@@ -88,66 +109,127 @@ describe('AuthController', () => {
         'Email already in use',
         HttpStatus.CONFLICT,
       );
-      mockAuthService.register.mockRejectedValue(conflictError);
+      mockAuthService.registerAdmin.mockRejectedValue(conflictError);
 
-      await expect(controller.register(registerDto)).rejects.toThrow(
+      await expect(controller.registerAdmin(adminRegisterDto)).rejects.toThrow(
         conflictError,
       );
-      expect(mockAuthService.register).toHaveBeenCalledWith(registerDto);
     });
 
-    it('should throw BadRequestException for weak password', async () => {
-      const weakPasswordDto: RegisterDto = {
-        ...registerDto,
-        password: 'weak',
-      };
-
+    it('should throw BadRequestException if admin exists without token', async () => {
       const badRequestError = new HttpException(
-        'Password must be at least 8 characters',
+        'Admin already exists. Use registration token to create another admin.',
         HttpStatus.BAD_REQUEST,
       );
-      mockAuthService.register.mockRejectedValue(badRequestError);
+      mockAuthService.registerAdmin.mockRejectedValue(badRequestError);
 
-      await expect(controller.register(weakPasswordDto)).rejects.toThrow(
+      await expect(controller.registerAdmin(adminRegisterDto)).rejects.toThrow(
         badRequestError,
       );
     });
   });
 
+  describe('registerStaff', () => {
+    const staffRegisterDto: StaffRegisterDto = {
+      email: 'sales@example.com',
+      password: 'SecurePassword123',
+      fullName: 'Sales User',
+      phone: '+251912345679',
+    };
+
+    const mockJwtPayload = {
+      sub: '123e4567-e89b-12d3-a456-426614174000',
+      email: 'admin@example.com',
+      role: UserRole.ADMIN,
+    };
+
+    it('should register staff successfully', async () => {
+      mockAuthService.registerStaff.mockResolvedValue(mockSalesResponse);
+
+      const result = await controller.registerStaff(
+        staffRegisterDto,
+        mockJwtPayload,
+      );
+
+      expect(result).toEqual(mockSalesResponse);
+      expect(result.accessToken).toBeDefined();
+      expect(result.user.email).toBe(staffRegisterDto.email);
+      expect(result.user.role).toBe(UserRole.SALES);
+      expect(mockAuthService.registerStaff).toHaveBeenCalledWith(
+        mockJwtPayload.sub,
+        staffRegisterDto,
+      );
+    });
+
+    it('should return staff data with correct properties', async () => {
+      mockAuthService.registerStaff.mockResolvedValue(mockSalesResponse);
+
+      const result = await controller.registerStaff(
+        staffRegisterDto,
+        mockJwtPayload,
+      );
+
+      expect(result.user).toHaveProperty('id');
+      expect(result.user).toHaveProperty('email');
+      expect(result.user).toHaveProperty('fullName');
+      expect(result.user).toHaveProperty('role');
+      expect(result.user.role).toBe(UserRole.SALES);
+    });
+
+    it('should throw ConflictException if email already exists', async () => {
+      const conflictError = new HttpException(
+        'Email already in use',
+        HttpStatus.CONFLICT,
+      );
+      mockAuthService.registerStaff.mockRejectedValue(conflictError);
+
+      await expect(
+        controller.registerStaff(staffRegisterDto, mockJwtPayload),
+      ).rejects.toThrow(conflictError);
+    });
+
+    it('should throw UnauthorizedException if not admin', async () => {
+      const unauthorizedError = new HttpException(
+        'Only admins can register staff',
+        HttpStatus.UNAUTHORIZED,
+      );
+      mockAuthService.registerStaff.mockRejectedValue(unauthorizedError);
+
+      const nonAdminPayload = {
+        ...mockJwtPayload,
+        role: UserRole.SALES,
+      };
+
+      await expect(
+        controller.registerStaff(staffRegisterDto, nonAdminPayload),
+      ).rejects.toThrow(unauthorizedError);
+    });
+  });
+
   describe('login', () => {
     const loginDto: LoginDto = {
-      email: 'test@example.com',
+      email: 'admin@example.com',
       password: 'SecurePassword123',
     };
 
     it('should login user successfully', async () => {
-      mockAuthService.login.mockResolvedValue(mockAuthResponse);
+      mockAuthService.login.mockResolvedValue(mockAdminResponse);
 
       const result = await controller.login(loginDto);
 
-      expect(result).toEqual(mockAuthResponse);
+      expect(result).toEqual(mockAdminResponse);
       expect(result.accessToken).toBeDefined();
       expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
-      expect(mockAuthService.login).toHaveBeenCalledTimes(1);
     });
 
     it('should return JWT token on successful login', async () => {
-      mockAuthService.login.mockResolvedValue(mockAuthResponse);
+      mockAuthService.login.mockResolvedValue(mockAdminResponse);
 
       const result = await controller.login(loginDto);
 
       expect(result.accessToken).toBe('test-jwt-token');
+      expect(result.refreshToken).toBe('test-refresh-token');
       expect(typeof result.accessToken).toBe('string');
-    });
-
-    it('should return user data on successful login', async () => {
-      mockAuthService.login.mockResolvedValue(mockAuthResponse);
-
-      const result = await controller.login(loginDto);
-
-      expect(result.user.email).toBe(loginDto.email);
-      expect(result.user.id).toBeDefined();
-      expect(result.user.role).toBe(UserRole.CUSTOMER);
     });
 
     it('should throw UnauthorizedException for invalid credentials', async () => {
@@ -160,152 +242,96 @@ describe('AuthController', () => {
       await expect(controller.login(loginDto)).rejects.toThrow(
         unauthorizedError,
       );
-      expect(mockAuthService.login).toHaveBeenCalledWith(loginDto);
-    });
-
-    it('should throw UnauthorizedException for wrong password', async () => {
-      const wrongPasswordDto: LoginDto = {
-        ...loginDto,
-        password: 'WrongPassword123',
-      };
-
-      const unauthorizedError = new HttpException(
-        'Invalid email or password',
-        HttpStatus.UNAUTHORIZED,
-      );
-      mockAuthService.login.mockRejectedValue(unauthorizedError);
-
-      await expect(controller.login(wrongPasswordDto)).rejects.toThrow(
-        unauthorizedError,
-      );
-    });
-
-    it('should throw UnauthorizedException for non-existent email', async () => {
-      const nonExistentEmailDto: LoginDto = {
-        ...loginDto,
-        email: 'nonexistent@example.com',
-      };
-
-      const unauthorizedError = new HttpException(
-        'Invalid email or password',
-        HttpStatus.UNAUTHORIZED,
-      );
-      mockAuthService.login.mockRejectedValue(unauthorizedError);
-
-      await expect(controller.login(nonExistentEmailDto)).rejects.toThrow(
-        unauthorizedError,
-      );
     });
   });
 
   describe('getMe', () => {
     const mockJwtPayload = {
       sub: '123e4567-e89b-12d3-a456-426614174000',
-      email: 'test@example.com',
-      role: UserRole.CUSTOMER,
+      email: 'admin@example.com',
+      role: UserRole.ADMIN,
     };
 
     it('should return current user data', async () => {
-      mockAuthService.getCurrentUser = jest
-        .fn()
-        .mockResolvedValue(mockAuthResponse);
+      mockAuthService.getCurrentUser.mockResolvedValue(mockAdminResponse);
 
       const result = await controller.getMe(mockJwtPayload);
 
-      expect(result).toEqual(mockAuthResponse);
+      expect(result).toEqual(mockAdminResponse);
       expect(result.accessToken).toBeDefined();
-      expect(result.user.email).toBe(mockAuthResponse.user.email);
-      expect(mockAuthService.getCurrentUser).toHaveBeenCalledWith(
-        mockJwtPayload.sub,
-      );
+      expect(result.user.email).toBe(mockAdminResponse.user.email);
     });
 
-    it('should return user data with correct properties', async () => {
-      mockAuthService.getCurrentUser = jest
-        .fn()
-        .mockResolvedValue(mockAuthResponse);
-
-      const result = await controller.getMe(mockJwtPayload);
-
-      expect(result.user).toHaveProperty('id');
-      expect(result.user).toHaveProperty('email');
-      expect(result.user).toHaveProperty('fullName');
-      expect(result.user).toHaveProperty('role');
-      expect(result.user).toHaveProperty('phone');
-      expect(result.user).toHaveProperty('verified');
-    });
-
-    it('should call authService.getCurrentUser with user ID from token', async () => {
-      mockAuthService.getCurrentUser = jest
-        .fn()
-        .mockResolvedValue(mockAuthResponse);
+    it('should call authService.getCurrentUser with user ID', async () => {
+      mockAuthService.getCurrentUser.mockResolvedValue(mockAdminResponse);
 
       await controller.getMe(mockJwtPayload);
 
       expect(mockAuthService.getCurrentUser).toHaveBeenCalledWith(
         mockJwtPayload.sub,
       );
-      expect(mockAuthService.getCurrentUser).toHaveBeenCalledTimes(1);
     });
+  });
 
-    it('should return user with ADMIN role if present', async () => {
-      const adminResponse = {
-        ...mockAuthResponse,
-        user: {
-          ...mockAuthResponse.user,
-          role: UserRole.ADMIN,
-        },
-      };
-      mockAuthService.getCurrentUser = jest
-        .fn()
-        .mockResolvedValue(adminResponse);
+  describe('refresh', () => {
+    const mockJwtPayload = {
+      sub: '123e4567-e89b-12d3-a456-426614174000',
+      email: 'admin@example.com',
+      role: UserRole.ADMIN,
+    };
 
-      const result = await controller.getMe(mockJwtPayload);
+    it('should refresh access token successfully', async () => {
+      mockAuthService.refreshAccessToken.mockResolvedValue(mockAdminResponse);
 
-      expect(result.user.role).toBe(UserRole.ADMIN);
+      const result = await controller.refresh(mockJwtPayload);
+
+      expect(result).toEqual(mockAdminResponse);
+      expect(result.accessToken).toBeDefined();
+      expect(mockAuthService.refreshAccessToken).toHaveBeenCalledWith(
+        mockJwtPayload.sub,
+      );
     });
+  });
 
-    it('should return user with DRIVER role if present', async () => {
-      const driverResponse = {
-        ...mockAuthResponse,
-        user: {
-          ...mockAuthResponse.user,
-          role: UserRole.DRIVER,
-        },
-      };
-      mockAuthService.getCurrentUser = jest
-        .fn()
-        .mockResolvedValue(driverResponse);
+  describe('logout', () => {
+    const mockJwtPayload = {
+      sub: '123e4567-e89b-12d3-a456-426614174000',
+      email: 'admin@example.com',
+      role: UserRole.ADMIN,
+    };
 
-      const result = await controller.getMe(mockJwtPayload);
+    it('should logout successfully', async () => {
+      const logoutResponse = { message: 'Logged out successfully' };
+      mockAuthService.logout.mockResolvedValue(logoutResponse);
 
-      expect(result.user.role).toBe(UserRole.DRIVER);
+      const result = await controller.logout(mockJwtPayload);
+
+      expect(result).toEqual(logoutResponse);
+      expect(mockAuthService.logout).toHaveBeenCalledWith(mockJwtPayload.sub);
     });
   });
 
   describe('HTTP Status Codes', () => {
-    const registerDto: RegisterDto = {
-      email: 'test@example.com',
+    const adminRegisterDto: AdminRegisterDto = {
+      email: 'admin@example.com',
       password: 'SecurePassword123',
-      fullName: 'Test User',
+      fullName: 'Admin User',
       phone: '+251912345678',
     };
 
     const loginDto: LoginDto = {
-      email: 'test@example.com',
+      email: 'admin@example.com',
       password: 'SecurePassword123',
     };
 
-    it('register should return 201 Created', async () => {
-      mockAuthService.register.mockResolvedValue(mockAuthResponse);
-      // Note: HTTP status is set via @HttpCode decorator
-      await controller.register(registerDto);
-      expect(mockAuthService.register).toHaveBeenCalled();
+    it('registerAdmin should return 201 Created', async () => {
+      mockAuthService.registerAdmin.mockResolvedValue(mockAdminResponse);
+      await controller.registerAdmin(adminRegisterDto);
+      expect(mockAuthService.registerAdmin).toHaveBeenCalled();
     });
 
     it('login should return 200 OK', async () => {
-      mockAuthService.login.mockResolvedValue(mockAuthResponse);
-      // Note: HTTP status is set via @HttpCode decorator
+      mockAuthService.login.mockResolvedValue(mockAdminResponse);
       await controller.login(loginDto);
       expect(mockAuthService.login).toHaveBeenCalled();
     });

@@ -1,15 +1,16 @@
 import {
   Injectable,
   UnauthorizedException,
-  ConflictException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcryptjs from 'bcryptjs';
-import { User } from './entities/user.entity';
-import { RegisterDto, LoginDto } from './dtos';
+import { User, UserRole } from './entities/user.entity';
+import { LoginDto, AdminRegisterDto, StaffRegisterDto } from './dtos';
 
 @Injectable()
 export class AuthService {
@@ -17,12 +18,14 @@ export class AuthService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
-    const { email, password, fullName, phone } = registerDto;
+  async registerAdmin(adminRegisterDto: AdminRegisterDto) {
+    const { email, password, fullName, phone, registrationToken } =
+      adminRegisterDto;
 
-    // Check if user exists
+    // Check if user already exists
     const existingUser = await this.userRepository.findOne({
       where: { email },
     });
@@ -31,28 +34,89 @@ export class AuthService {
       throw new ConflictException('Email already in use');
     }
 
-    if (!password || password.length < 8) {
+    // Validate registration token if provided
+    if (registrationToken) {
+      const expectedToken = this.configService.get<string>(
+        'ADMIN_REGISTRATION_TOKEN',
+      );
+      if (registrationToken !== expectedToken) {
+        throw new UnauthorizedException('Invalid registration token');
+      }
+    }
+
+    // Check if any admin already exists
+    const adminExists = await this.userRepository.findOne({
+      where: { role: UserRole.ADMIN },
+    });
+
+    if (adminExists && !registrationToken) {
+      throw new BadRequestException(
+        'Admin already exists. Use registration token to create another admin.',
+      );
+    }
+
+    if (password.length < 8) {
       throw new BadRequestException('Password must be at least 8 characters');
     }
 
     // Hash password
-    const hashedPassword: string = (await bcryptjs.hash(
-      password,
-      10,
-    )) as string;
+    const hashedPassword = await bcryptjs.hash(password, 10);
 
-    // Create user
-    const user = this.userRepository.create({
+    // Create admin user
+    const admin = this.userRepository.create({
       email,
       passwordHash: hashedPassword,
       fullName,
       phone,
+      role: UserRole.ADMIN,
+      verified: true,
     });
 
-    await this.userRepository.save(user);
+    await this.userRepository.save(admin);
 
-    // Return token
-    return this.generateToken(user);
+    return this.generateToken(admin);
+  }
+
+  async registerStaff(adminId: string, staffRegisterDto: StaffRegisterDto) {
+    const { email, password, fullName, phone } = staffRegisterDto;
+
+    // Verify requesting user is admin
+    const admin = await this.userRepository.findOne({ where: { id: adminId } });
+
+    if (!admin || admin.role !== UserRole.ADMIN) {
+      throw new UnauthorizedException('Only admins can register staff');
+    }
+
+    // Check if user already exists
+    const existingUser = await this.userRepository.findOne({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('Email already in use');
+    }
+
+    if (password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    // Hash password
+    const hashedPassword = await bcryptjs.hash(password, 10);
+
+    // Create staff user
+    const staff = this.userRepository.create({
+      email,
+      passwordHash: hashedPassword,
+      fullName,
+      phone,
+      role: UserRole.SALES,
+      verified: true,
+      createdBy: adminId,
+    });
+
+    await this.userRepository.save(staff);
+
+    return this.generateToken(staff);
   }
 
   async login(loginDto: LoginDto) {
