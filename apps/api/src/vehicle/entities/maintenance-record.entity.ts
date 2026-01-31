@@ -39,7 +39,7 @@ export class MaintenanceRecord {
   mileageAtTime: number;
 
   @Column({ type: 'text', nullable: true })
-  notes: string;
+  notes?: string;
 
   @CreateDateColumn()
   createdAt: Date;
