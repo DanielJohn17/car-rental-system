@@ -32,5 +32,15 @@ export class AuthResponseDto {
   accessToken: string;
 
   @ApiProperty()
+  refreshToken: string;
+
+  @ApiProperty()
   user: UserResponseDto;
+}
+
+export class RefreshTokenDto {
+  @ApiProperty({
+    description: 'The refresh token obtained from login or registration',
+  })
+  refreshToken: string;
 }

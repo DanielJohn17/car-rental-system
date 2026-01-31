@@ -82,11 +82,18 @@ export class AuthService {
   private generateToken(user: User) {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload, {
-      expiresIn: '24h',
+      expiresIn: '15m',
+    });
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret:
+        process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
+      expiresIn: '7d',
     });
 
     return {
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -116,5 +123,23 @@ export class AuthService {
     }
 
     return this.generateToken(user);
+  }
+
+  async refreshAccessToken(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return this.generateToken(user);
+  }
+
+  async logout(userId: string) {
+    await this.userRepository.update(userId, {
+      refreshToken: null,
+    });
+
+    return { message: 'Logged out successfully' };
   }
 }

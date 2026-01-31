@@ -17,8 +17,9 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, AuthResponseDto } from './dtos';
+import { LoginDto, RegisterDto, AuthResponseDto, RefreshTokenDto } from './dtos';
 import { JwtGuard } from './guards/jwt.guard';
+import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 
 export interface JwtPayload {
@@ -75,5 +76,34 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async getMe(@CurrentUser() user: JwtPayload): Promise<AuthResponseDto> {
     return this.authService.getCurrentUser(user.sub);
+  }
+
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiBearerAuth()
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'New access token issued',
+    type: AuthResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: 'Invalid or expired refresh token' })
+  @UseGuards(RefreshTokenGuard)
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async refresh(@CurrentUser() user: JwtPayload): Promise<AuthResponseDto> {
+    return this.authService.refreshAccessToken(user.sub);
+  }
+
+  @ApiOperation({ summary: 'Logout user (requires JWT)' })
+  @ApiBearerAuth()
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'User logged out successfully',
+  })
+  @ApiUnauthorizedResponse({ description: 'Invalid or missing token' })
+  @UseGuards(JwtGuard)
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@CurrentUser() user: JwtPayload): Promise<{ message: string }> {
+    return this.authService.logout(user.sub);
   }
 }
