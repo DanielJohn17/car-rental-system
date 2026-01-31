@@ -10,6 +10,7 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiQuery, ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from '@nestjs/swagger';
 import { VehicleService } from './vehicle.service';
 import { JwtGuard } from '../auth/guards/jwt.guard';
 import { createRoleGuard } from '../auth/guards/role.guard';
@@ -24,16 +25,29 @@ import {
 import { Vehicle, VehicleStatus } from './entities/vehicle.entity';
 import { MaintenanceRecord } from './entities/maintenance-record.entity';
 
+@ApiTags('vehicles')
 @Controller('vehicles')
 export class VehicleController {
   constructor(private vehicleService: VehicleService) {}
 
   /**
    * Search vehicles with filters (PUBLIC)
-   * GET /vehicles/search?make=Toyota&model=Camry&locationId=...&minDailyRate=50&maxDailyRate=200&color=Red&minMileage=0&maxMileage=50000
-   * Query params: make, model, locationId, minDailyRate, maxDailyRate, fuelType, transmission, minSeats, color, minMileage, maxMileage, limit, offset
    */
   @Get('search')
+  @ApiOperation({ summary: 'Search vehicles with filters' })
+  @ApiQuery({ name: 'make', required: false, description: 'Vehicle make/brand (e.g. Toyota)' })
+  @ApiQuery({ name: 'model', required: false, description: 'Vehicle model (e.g. Camry)' })
+  @ApiQuery({ name: 'locationId', required: false, description: 'Location/branch UUID' })
+  @ApiQuery({ name: 'minDailyRate', required: false, type: Number, description: 'Minimum daily rental rate' })
+  @ApiQuery({ name: 'maxDailyRate', required: false, type: Number, description: 'Maximum daily rental rate' })
+  @ApiQuery({ name: 'fuelType', required: false, description: 'Fuel type (PETROL, DIESEL, ELECTRIC, HYBRID)' })
+  @ApiQuery({ name: 'transmission', required: false, description: 'Transmission type (MANUAL, AUTO)' })
+  @ApiQuery({ name: 'minSeats', required: false, type: Number, description: 'Minimum number of seats' })
+  @ApiQuery({ name: 'color', required: false, description: 'Vehicle color (e.g. Red, Blue)' })
+  @ApiQuery({ name: 'minMileage', required: false, type: Number, description: 'Minimum mileage' })
+  @ApiQuery({ name: 'maxMileage', required: false, type: Number, description: 'Maximum mileage' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Results limit (default 20, max 100)' })
+  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Results offset for pagination' })
   async search(@Query() searchDto: SearchVehiclesDto) {
     return this.vehicleService.search(searchDto);
   }
@@ -49,10 +63,23 @@ export class VehicleController {
 
   /**
    * Check vehicle availability for date range (PUBLIC)
-   * POST /vehicles/:id/check-availability
-   * Body: { startDate: "2024-01-01", endDate: "2024-01-10", locationId: "..." }
    */
   @Post(':id/check-availability')
+  @ApiOperation({ summary: 'Check vehicle availability for date range' })
+  @ApiParam({ name: 'id', description: 'Vehicle UUID' })
+  @ApiBody({
+    type: CheckAvailabilityDto,
+    examples: {
+      example1: {
+        value: {
+          startDate: '2024-01-01',
+          endDate: '2024-01-10',
+          locationId: 'uuid-here',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Availability check result' })
   async checkAvailability(
     @Param('id') vehicleId: string,
     @Body() checkDto: CheckAvailabilityDto,
@@ -65,9 +92,12 @@ export class VehicleController {
 
   /**
    * Get available vehicles for date range (PUBLIC)
-   * GET /vehicles/available?startDate=2024-01-01&endDate=2024-01-10&locationId=...
    */
   @Get('available/search')
+  @ApiOperation({ summary: 'Get available vehicles for date range' })
+  @ApiQuery({ name: 'startDate', required: true, description: 'Start date (ISO format: 2024-01-01)' })
+  @ApiQuery({ name: 'endDate', required: true, description: 'End date (ISO format: 2024-01-10)' })
+  @ApiQuery({ name: 'locationId', required: false, description: 'Location/branch UUID (optional)' })
   async getAvailableVehicles(
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
@@ -84,20 +114,47 @@ export class VehicleController {
 
   /**
    * Create vehicle (ADMIN/SALES only)
-   * POST /vehicles
    */
   @Post()
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @ApiOperation({ summary: 'Create new vehicle (Admin/Sales only)' })
+  @ApiBody({
+    type: CreateVehicleDto,
+    examples: {
+      example1: {
+        value: {
+          make: 'Toyota',
+          model: 'Camry',
+          year: 2023,
+          licensePlate: 'ABC-1234',
+          vin: 'VIN123456789',
+          color: 'Red',
+          fuelType: 'PETROL',
+          transmission: 'AUTO',
+          seats: 5,
+          dailyRate: 75.5,
+          hourlyRate: 12.5,
+          locationId: 'uuid-here',
+          mileage: 0,
+          images: ['url1', 'url2'],
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Vehicle created successfully', type: Vehicle })
+  @ApiResponse({ status: 409, description: 'License plate or VIN already exists' })
   async create(@Body() createVehicleDto: CreateVehicleDto): Promise<Vehicle> {
     return this.vehicleService.create(createVehicleDto);
   }
 
   /**
    * Get all vehicles with pagination (ADMIN/SALES only)
-   * GET /vehicles?limit=20&offset=0
    */
   @Get()
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @ApiOperation({ summary: 'Get all vehicles (Admin/Sales only)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Results limit (default 20)' })
+  @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Results offset for pagination' })
   async findAll(
     @Query('limit') limit: string = '20',
     @Query('offset') offset: string = '0',
@@ -171,11 +228,52 @@ export class VehicleController {
 
   /**
    * Add maintenance record (ADMIN/SALES only)
-   * POST /vehicles/:id/maintenance
-   * Body: { type: "SERVICE" | "REPAIR" | "INSPECTION", cost: 100, mileageAtTime: 50000, notes: "..." }
    */
   @Post(':id/maintenance')
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @ApiOperation({ summary: 'Add maintenance record for vehicle (Admin/Sales only)' })
+  @ApiParam({ name: 'id', description: 'Vehicle UUID' })
+  @ApiBody({
+    schema: {
+      properties: {
+        type: { type: 'string', enum: ['SERVICE', 'REPAIR', 'INSPECTION'], description: 'Maintenance type' },
+        cost: { type: 'number', description: 'Cost of maintenance' },
+        mileageAtTime: { type: 'number', description: 'Vehicle mileage when maintenance performed' },
+        notes: { type: 'string', description: 'Additional notes (optional)' },
+      },
+      required: ['type', 'cost', 'mileageAtTime'],
+    },
+    examples: {
+      example1: {
+        summary: 'Service example',
+        value: {
+          type: 'SERVICE',
+          cost: 150.5,
+          mileageAtTime: 50000,
+          notes: 'Regular oil change and filter replacement',
+        },
+      },
+      example2: {
+        summary: 'Repair example',
+        value: {
+          type: 'REPAIR',
+          cost: 500,
+          mileageAtTime: 52000,
+          notes: 'Front brake pad replacement',
+        },
+      },
+      example3: {
+        summary: 'Inspection example',
+        value: {
+          type: 'INSPECTION',
+          cost: 75,
+          mileageAtTime: 55000,
+          notes: 'Annual safety inspection completed',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Maintenance record created', type: MaintenanceRecord })
   async addMaintenanceRecord(
     @Param('id') vehicleId: string,
     @Body() body: { type: string; cost: number; mileageAtTime: number; notes?: string },
