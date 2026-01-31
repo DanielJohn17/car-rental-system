@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, And, LessThan, MoreThan, In } from 'typeorm';
 import { Vehicle, VehicleStatus } from './entities/vehicle.entity';
@@ -35,7 +40,9 @@ export class VehicleService {
     });
 
     if (existingVehicle) {
-      throw new ConflictException('Vehicle with this license plate or VIN already exists');
+      throw new ConflictException(
+        'Vehicle with this license plate or VIN already exists',
+      );
     }
 
     const vehicle = this.vehicleRepository.create(createVehicleDto);
@@ -45,7 +52,10 @@ export class VehicleService {
   /**
    * Get all vehicles with pagination and relations
    */
-  async findAll(limit: number = 20, offset: number = 0): Promise<{ data: Vehicle[]; total: number }> {
+  async findAll(
+    limit: number = 20,
+    offset: number = 0,
+  ): Promise<{ data: Vehicle[]; total: number }> {
     const [data, total] = await this.vehicleRepository.findAndCount({
       relations: ['location', 'maintenanceRecords'],
       take: limit,
@@ -59,12 +69,16 @@ export class VehicleService {
   /**
    * Search vehicles with filters (Public endpoint)
    */
-  async search(searchDto: SearchVehiclesDto): Promise<{ data: Vehicle[]; total: number }> {
+  async search(
+    searchDto: SearchVehiclesDto,
+  ): Promise<{ data: Vehicle[]; total: number }> {
     const query = this.vehicleRepository.createQueryBuilder('vehicle');
 
     // If status not specified, only show available vehicles for public search
     if (!searchDto.status) {
-      query.where('vehicle.status = :status', { status: VehicleStatus.AVAILABLE });
+      query.where('vehicle.status = :status', {
+        status: VehicleStatus.AVAILABLE,
+      });
     } else {
       query.where('vehicle.status = :status', { status: searchDto.status });
     }
@@ -88,7 +102,9 @@ export class VehicleService {
     }
 
     if (searchDto.locationId) {
-      query.andWhere('vehicle.locationId = :locationId', { locationId: searchDto.locationId });
+      query.andWhere('vehicle.locationId = :locationId', {
+        locationId: searchDto.locationId,
+      });
     }
 
     if (searchDto.minDailyRate !== undefined) {
@@ -104,7 +120,9 @@ export class VehicleService {
     }
 
     if (searchDto.fuelType) {
-      query.andWhere('vehicle.fuelType = :fuelType', { fuelType: searchDto.fuelType });
+      query.andWhere('vehicle.fuelType = :fuelType', {
+        fuelType: searchDto.fuelType,
+      });
     }
 
     if (searchDto.transmission) {
@@ -114,7 +132,9 @@ export class VehicleService {
     }
 
     if (searchDto.minSeats !== undefined) {
-      query.andWhere('vehicle.seats >= :minSeats', { minSeats: searchDto.minSeats });
+      query.andWhere('vehicle.seats >= :minSeats', {
+        minSeats: searchDto.minSeats,
+      });
     }
 
     if (searchDto.minMileage !== undefined) {
@@ -157,11 +177,17 @@ export class VehicleService {
   /**
    * Update vehicle (Admin/Sales only)
    */
-  async update(id: string, updateVehicleDto: UpdateVehicleDto): Promise<Vehicle> {
+  async update(
+    id: string,
+    updateVehicleDto: UpdateVehicleDto,
+  ): Promise<Vehicle> {
     const vehicle = await this.findById(id);
 
     // Check for duplicate license plate or VIN if being updated
-    if (updateVehicleDto.licensePlate && updateVehicleDto.licensePlate !== vehicle.licensePlate) {
+    if (
+      updateVehicleDto.licensePlate &&
+      updateVehicleDto.licensePlate !== vehicle.licensePlate
+    ) {
       const existing = await this.vehicleRepository.findOne({
         where: { licensePlate: updateVehicleDto.licensePlate },
       });
@@ -193,12 +219,18 @@ export class VehicleService {
     const activeBookings = await this.bookingRepository.count({
       where: {
         vehicleId: id,
-        status: In([BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.ONGOING]),
+        status: In([
+          BookingStatus.PENDING,
+          BookingStatus.APPROVED,
+          BookingStatus.ONGOING,
+        ]),
       },
     });
 
     if (activeBookings > 0) {
-      throw new BadRequestException('Cannot delete vehicle with active bookings');
+      throw new BadRequestException(
+        'Cannot delete vehicle with active bookings',
+      );
     }
 
     await this.vehicleRepository.remove(vehicle);
@@ -207,7 +239,10 @@ export class VehicleService {
   /**
    * Check vehicle availability for a date range and location (Public endpoint)
    */
-  async checkAvailability(vehicleId: string, checkDto: CheckAvailabilityDto): Promise<{
+  async checkAvailability(
+    vehicleId: string,
+    checkDto: CheckAvailabilityDto,
+  ): Promise<{
     available: boolean;
     reason?: string;
   }> {
@@ -242,7 +277,11 @@ export class VehicleService {
     const overlappingBooking = await this.bookingRepository.findOne({
       where: {
         vehicleId,
-        status: In([BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.ONGOING]),
+        status: In([
+          BookingStatus.PENDING,
+          BookingStatus.APPROVED,
+          BookingStatus.ONGOING,
+        ]),
         startDateTime: LessThan(endDate),
         endDateTime: MoreThan(startDate),
       },
@@ -288,7 +327,11 @@ export class VehicleService {
       const overlappingBooking = await this.bookingRepository.findOne({
         where: {
           vehicleId: vehicle.id,
-          status: In([BookingStatus.PENDING, BookingStatus.APPROVED, BookingStatus.ONGOING]),
+          status: In([
+            BookingStatus.PENDING,
+            BookingStatus.APPROVED,
+            BookingStatus.ONGOING,
+          ]),
           startDateTime: LessThan(end),
           endDateTime: MoreThan(start),
         },
@@ -363,4 +406,3 @@ export class VehicleService {
     return this.maintenanceRepository.save(record);
   }
 }
-

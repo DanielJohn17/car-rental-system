@@ -150,8 +150,7 @@ export class AuthService {
     });
 
     const refreshToken = this.jwtService.sign(payload, {
-      secret:
-        process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
+      secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
       expiresIn: '7d',
     });
 

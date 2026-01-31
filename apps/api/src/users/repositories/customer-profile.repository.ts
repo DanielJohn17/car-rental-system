@@ -5,10 +5,7 @@ import { CustomerProfile } from '../entities/customer-profile.entity';
 @Injectable()
 export class CustomerProfileRepository extends Repository<CustomerProfile> {
   constructor(private dataSource: DataSource) {
-    super(
-      CustomerProfile,
-      dataSource.createEntityManager(),
-    );
+    super(CustomerProfile, dataSource.createEntityManager());
   }
 
   async findByUserId(userId: string): Promise<CustomerProfile | null> {

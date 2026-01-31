@@ -64,10 +64,7 @@ export class UsersService {
     limit: number = 10,
   ): Promise<StaffListResponseDto> {
     const [staff, total] = await this.userRepository.findAndCount({
-      where: [
-        { role: UserRole.ADMIN },
-        { role: UserRole.SALES },
-      ],
+      where: [{ role: UserRole.ADMIN }, { role: UserRole.SALES }],
       skip: (page - 1) * limit,
       take: limit,
       order: { createdAt: 'DESC' },
@@ -111,10 +108,7 @@ export class UsersService {
       throw new NotFoundException('Requesting user not found');
     }
 
-    if (
-      requestingUserId !== id &&
-      requestingUser.role !== UserRole.ADMIN
-    ) {
+    if (requestingUserId !== id && requestingUser.role !== UserRole.ADMIN) {
       throw new ForbiddenException(
         'You can only update your own profile or be an admin',
       );

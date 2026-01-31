@@ -1,9 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID, IsEnum, IsNumber } from 'class-validator';
 import {
-  IDCardType,
-  DepositStatus,
-} from '../entities/customer-profile.entity';
+  IsOptional,
+  IsString,
+  IsUUID,
+  IsEnum,
+  IsNumber,
+} from 'class-validator';
+import { IDCardType, DepositStatus } from '../entities/customer-profile.entity';
 
 export class CreateCustomerProfileDto {
   @ApiProperty({ description: 'User ID (UUID)' })

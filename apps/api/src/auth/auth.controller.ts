@@ -18,7 +18,12 @@ import {
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, AuthResponseDto, AdminRegisterDto, StaffRegisterDto } from './dtos';
+import {
+  LoginDto,
+  AuthResponseDto,
+  AdminRegisterDto,
+  StaffRegisterDto,
+} from './dtos';
 import { JwtGuard } from './guards/jwt.guard';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { createRoleGuard } from './guards/role.guard';
@@ -49,7 +54,9 @@ export class AuthController {
     type: AuthResponseDto,
   })
   @ApiConflictResponse({ description: 'Email already in use' })
-  @ApiBadRequestResponse({ description: 'Admin already exists or invalid password' })
+  @ApiBadRequestResponse({
+    description: 'Admin already exists or invalid password',
+  })
   @ApiUnauthorizedResponse({ description: 'Invalid registration token' })
   async registerAdmin(
     @Body(ValidationPipe) adminRegisterDto: AdminRegisterDto,

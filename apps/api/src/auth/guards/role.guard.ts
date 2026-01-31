@@ -6,7 +6,9 @@ import {
 } from '@nestjs/common';
 import { UserRole } from '../entities/user.entity';
 
-export const createRoleGuard = (requiredRoles: UserRole[]): Type<CanActivate> => {
+export const createRoleGuard = (
+  requiredRoles: UserRole[],
+): Type<CanActivate> => {
   class RoleGuardImpl implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
       const request = context.switchToHttp().getRequest();

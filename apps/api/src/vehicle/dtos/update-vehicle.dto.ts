@@ -1,5 +1,18 @@
-import { IsString, IsNumber, IsEnum, IsOptional, IsArray, IsUUID, Min, Max } from 'class-validator';
-import { FuelType, Transmission, VehicleStatus } from '../entities/vehicle.entity';
+import {
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsOptional,
+  IsArray,
+  IsUUID,
+  Min,
+  Max,
+} from 'class-validator';
+import {
+  FuelType,
+  Transmission,
+  VehicleStatus,
+} from '../entities/vehicle.entity';
 
 export class UpdateVehicleDto {
   @IsOptional()

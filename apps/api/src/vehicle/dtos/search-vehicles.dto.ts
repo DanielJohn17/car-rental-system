@@ -1,4 +1,12 @@
-import { IsOptional, IsString, IsNumber, IsUUID, Min, Max, IsEnum } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsUUID,
+  Min,
+  Max,
+  IsEnum,
+} from 'class-validator';
 import { VehicleStatus } from '../entities/vehicle.entity';
 
 export class SearchVehiclesDto {

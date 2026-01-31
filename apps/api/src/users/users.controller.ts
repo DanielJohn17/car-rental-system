@@ -103,8 +103,7 @@ export class UsersController {
   @UseGuards(createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
   @ApiOperation({
     summary: 'Update staff member profile',
-    description:
-      'Users can update their own profile, admins can update anyone',
+    description: 'Users can update their own profile, admins can update anyone',
   })
   @ApiResponse({
     status: HttpStatus.OK,
