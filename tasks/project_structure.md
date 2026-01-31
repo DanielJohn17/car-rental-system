@@ -1,305 +1,319 @@
-# Refined Scope for Car Rental / Sharing System
-Key characteristics we'll aim for (blending traditional rental + some sharing elements):
+# Scope Change Update – Revised Planning for Car Rental / Sharing System
+Based on the new requirements, here's a high-level planning revision to the project scope. This overrides or refines previous decisions where conflicting (e.g., no customer auth, anonymous bookings with partial payment, split user roles for admin/sales). No code – just structure, decisions, and phased adjustments.
+Key scope shifts summarized:
 
-# Customers browse/search/book cars independently via app/web
-Flexible durations (hours to weeks)
-Self-service pickup/return possible (keyless / smart locks in future phases)
-Admin approves bookings, manages fleet status, handles payments/damages
-Basic sharing flavor: multiple customers per car over time, high utilization tracking
+- **Customers**: Fully anonymous access (no sign-in/register). They browse/search cars with filters, select dates/locations, submit booking request with minimal info (e.g., phone for contact), and pay 10% deposit via Stripe to confirm intent. Booking goes to "pending" until sales approval.
+- **Admin & Sales Team**: Authenticated only. Separate login (e.g., /admin routes). Admin manages everything (add/remove sales members, cars, etc.). Sales views pending bookings, sees customer phone, handles manual calls/negotiations (off-system), approves/rejects, reports maintenance/damages.
+- **Overall System Focus**: Booking flow (anonymous customer side), search/filters, admin/sales management of users/cars/statuses. No full customer profiles/history since anonymous.
+- **Payment**: Only 10% deposit on booking submission (via Stripe). Full payment handled off-system (e.g., after sales call/negotiation).
+- **No Changes to Tech**: Still monorepo, NestJS API, Next.js dashboard (now split: public customer pages vs protected admin/sales), Prisma/Neon, Stripe in packages/payments, Cloudinary in packages/storage.
 
-# MVP Focus (first releasable version):
+# Car Rental System - Revised Core Entities (TypeORM-friendly Structure)
 
-- User auth + roles
-- Vehicle catalog + availability
-- Booking creation & simple approval flow
-- Basic payment capture (or mock)
-- Customer & admin dashboards
+Adjusted for anonymous/guest customers (no User entity for customers).  
+Bookings store minimal guest contact info directly.  
+Focus on admin/sales-only authentication.
 
-- Core Entities (Main Database Tables / Prisma Models)
-From common patterns in rental systems:
-# Car Rental System - Core Entities & Relationships (Phase 1)
+## 1. User (Only for Admin & Sales staff)
 
-## 1. User (Main account entity)
-
-| Field                | Type/Notes                          | Description / Purpose                          |
-|----------------------|-------------------------------------|------------------------------------------------|
-| id                   | UUID / Auto-increment               | Primary key                                    |
-| email                | string (unique)                     | Login + notifications                          |
-| passwordHash         | string                              | Securely hashed password                       |
-| fullName             | string                              | Display name                                   |
-| phone                | string                              | Contact + SMS OTP                              |
-| role                 | enum: CUSTOMER \| ADMIN \| DRIVER   | Access control                                 |
-| drivingLicenseNumber | string (nullable)                   | Required for DRIVER role                       |
-| licenseExpiry        | date (nullable)                     | Expiry check for drivers                       |
-| verified             | boolean                             | Email/phone/KYC verified flag                  |
-
-**Notes**:  
-- Extend later with: profile photo, dateOfBirth, nationality, etc. for KYC  
-- DRIVER role is planned but may come in phase 2
-
-## 2. CustomerProfile (1:1 with User)
-
-| Field          | Type/Notes               | Description                              |
-|----------------|--------------------------|------------------------------------------|
-| userId         | FK → User.id             | One-to-one relationship                  |
-| address        | string / JSON            | Full address or structured               |
-| idCardNumber   | string                   | National ID / Passport number            |
-| idCardType     | enum: ID_CARD \| PASSPORT|                                          |
-| depositStatus  | enum: NONE \| PAID \| HELD | Security deposit state                 |
-| rating         | float (1–5)              | Average customer rating                  |
-
-**Options**: embed into User table vs separate table (depends on how much KYC data you expect)
-
-## 3. Vehicle (Core asset)
-
-| Field           | Type/Notes                             | Description                              |
-|-----------------|----------------------------------------|------------------------------------------|
-| id              | UUID / Auto-increment                  | Primary key                              |
-| make            | string                                 | Brand (Toyota, Hyundai…)                 |
-| model           | string                                 | Model name                               |
-| year            | integer                                | Manufacturing year                       |
-| licensePlate    | string (unique)                        | Registration number                      |
-| VIN             | string (unique)                        | Vehicle Identification Number            |
-| color           | string                                 |                                          |
-| fuelType        | enum: PETROL \| DIESEL \| ELECTRIC …   |                                          |
-| transmission    | enum: MANUAL \| AUTO                   |                                          |
-| seats           | integer                                |                                          |
-| dailyRate       | decimal                                | Base price per day                       |
-| hourlyRate      | decimal (optional)                     | For short rentals (optional)             |
-| locationId      | FK → Location.id                       | Current home branch                      |
-| status          | enum: AVAILABLE \| RENTED \| MAINTENANCE \| DAMAGED \| RESERVED | Main lifecycle state |
-| mileage         | integer                                | Current odometer reading                 |
-| images          | array of URLs / Media IDs              | Multiple photos (exterior, interior…)    |
-
-## 4. Location / Branch (Pickup & Return points)
-
-| Field           | Type/Notes                  | Description                              |
-|-----------------|-----------------------------|------------------------------------------|
-| id              | UUID / Auto-increment       | Primary key                              |
-| name            | string                      | e.g. "Addis Ababa Airport", "Bole Branch"|
-| address         | string / structured         | Full address                             |
-| coordinates     | lat/long (or GeoJSON)       | For map display & distance calc          |
-| operatingHours  | JSON / array                | e.g. Mon–Sun 07:00–21:00                 |
-
-**Relationship**: 1 Location → Many Vehicles
-
-## 5. Booking / Rental (Heart of the system)
-
-| Field              | Type/Notes                                    | Description                              |
-|--------------------|-----------------------------------------------|------------------------------------------|
-| id                 | UUID / Auto-increment                         | Primary key                              |
-| userId             | FK → User.id                                  | Customer who booked                      |
-| vehicleId          | FK → Vehicle.id                               | Rented vehicle                           |
-| startDateTime      | datetime                                      | Pickup time                              |
-| endDateTime        | datetime                                      | Scheduled return time                    |
-| pickupLocationId   | FK → Location.id                              | Where customer takes the car             |
-| returnLocationId   | FK → Location.id                              | Where customer should return (can differ)|
-| status             | enum: PENDING \| APPROVED \| ONGOING \| COMPLETED \| CANCELLED \| OVERDUE | Main flow |
-| totalPrice         | decimal                                       | Final calculated price                   |
-| actualReturnDateTime| datetime (nullable)                          | Real return timestamp                    |
-| notes              | text (nullable)                               | Admin / customer notes                   |
+| Field         | Type              | Constraints / Notes                          | Description / Purpose                     |
+|---------------|-------------------|----------------------------------------------|-------------------------------------------|
+| id            | uuid / number     | Primary key, auto-generated                  | Unique identifier                         |
+| email         | string            | unique, not null                             | Login identifier                          |
+| passwordHash  | string            | not null                                     | Securely hashed password                  |
+| fullName      | string            | not null                                     | Display name                              |
+| phone         | string            | nullable                                     | Contact number                            |
+| role          | enum              | ADMIN \| SALES                               | Access level                              |
+| createdBy     | uuid / number     | FK → User.id (nullable)                      | Which admin created this sales account    |
+| createdAt     | timestamp         | default now                                  |                                           |
+| updatedAt     | timestamp         | on update                                    |                                           |
 
 **Relationships**  
-- User 1 → Many Bookings  
-- Vehicle 1 → Many Bookings
+- Admin 1 → Many Users (sales staff created by admin)
 
-## 6. Payment
+## 2. Vehicle
 
-| Field          | Type/Notes                           | Description                              |
-|----------------|--------------------------------------|------------------------------------------|
-| id             | UUID / Auto-increment                | Primary key                              |
-| bookingId      | FK → Booking.id                      |                                          |
-| amount         | decimal                              | Amount paid / to be paid                 |
-| paymentMethod  | enum: CARD \| MOBILE MONEY \| CASH … |                                          |
-| status         | enum: PENDING \| PAID \| REFUNDED    |                                          |
-| transactionId  | string (nullable)                    | Stripe / Chapa / PayPal reference        |
-| paidAt         | datetime (nullable)                  | When payment succeeded                   |
+| Field         | Type              | Constraints / Notes                          | Description / Purpose                     |
+|---------------|-------------------|----------------------------------------------|-------------------------------------------|
+| id            | uuid / number     | Primary key, auto-generated                  | Unique identifier                         |
+| make          | string            | not null                                     | Brand (Toyota, Hyundai…)                  |
+| model         | string            | not null                                     | Model name                                |
+| year          | number            | not null                                     | Manufacturing year                        |
+| licensePlate  | string            | unique, not null                             | Registration plate                        |
+| color         | string            | nullable                                     | Vehicle color                             |
+| fuelType      | string / enum     | nullable (PETROL, DIESEL, ELECTRIC…)         |                                           |
+| dailyRate     | decimal           | not null                                     | Base daily rental price                   |
+| locationId    | uuid / number     | FK → Location.id, not null                   | Current branch                            |
+| status        | enum              | AVAILABLE \| PENDING \| RENTED \| MAINTENANCE | Main lifecycle state                      |
+| images        | json / text[]     | nullable (array of URLs or paths)            | Multiple vehicle photos                   |
+| filters       | json / string[]   | nullable (e.g. ["SUV", "Automatic", "Electric"]) | Search & categorization tags          |
+| createdAt     | timestamp         | default now                                  |                                           |
+| updatedAt     | timestamp         | on update                                    |                                           |
 
-**Notes**: Can be 1:1 or 1:Many (deposit + final payment + extras)
+**Relationships**  
+- Belongs to Location (Many-to-One)
 
-## 7. DamageReport
+## 3. Location
 
-| Field         | Type/Notes                      | Description                              |
-|---------------|---------------------------------|------------------------------------------|
-| id            | UUID                            | Primary key                              |
-| bookingId     | FK → Booking.id                 | Which rental                                 |
-| reporterId    | FK → User.id (or Admin)         | Who reported (customer or staff)         |
-| description   | text                            | Damage details                           |
-| images        | array of URLs                   | Photos of damage                         |
-| costEstimate  | decimal (nullable)              | Estimated repair cost                    |
-| resolved      | boolean                         | Whether claim is settled                 |
+| Field         | Type              | Constraints / Notes                          | Description / Purpose                     |
+|---------------|-------------------|----------------------------------------------|-------------------------------------------|
+| id            | uuid / number     | Primary key, auto-generated                  | Unique identifier                         |
+| name          | string            | not null                                     | e.g. "Bole Branch", "Airport Terminal"    |
+| address       | string            | not null                                     | Full address                              |
+| coordinates   | json              | nullable ({ lat: number, lng: number })      | For maps & distance calculations          |
+| createdAt     | timestamp         | default now                                  |                                           |
+| updatedAt     | timestamp         | on update                                    |                                           |
 
-## 8. MaintenanceRecord
+**Relationships**  
+- 1 → Many Vehicles
 
-| Field          | Type/Notes                 | Description                              |
-|----------------|----------------------------|------------------------------------------|
-| id             | UUID                       | Primary key                              |
-| vehicleId      | FK → Vehicle.id            |                                          |
-| date           | date                       | When service/repair happened             |
-| type           | enum: SERVICE \| REPAIR …  |                                          |
-| cost           | decimal                    |                                          |
-| mileageAtTime  | integer                    | Odometer at service time                 |
-| notes          | text                       | Description, parts used, etc.            |
+## 4. Booking
 
-**Phase 2 priority** (according to your note)
+| Field              | Type              | Constraints / Notes                          | Description / Purpose                     |
+|--------------------|-------------------|----------------------------------------------|-------------------------------------------|
+| id                 | uuid / number     | Primary key, auto-generated                  | Unique identifier                         |
+| guestName          | string            | nullable (but recommended)                   | Guest full name                           |
+| guestPhone         | string            | not null                                     | Required for contact & confirmation       |
+| guestEmail         | string            | nullable                                     | Optional email for receipts/reminders     |
+| vehicleId          | uuid / number     | FK → Vehicle.id, not null                    | Rented vehicle                            |
+| startDate          | date / datetime   | not null                                     | Pickup date/time                          |
+| endDate            | date / datetime   | not null                                     | Scheduled return date/time                |
+| pickupLocationId   | uuid / number     | FK → Location.id, not null                   | Pickup branch                             |
+| totalPrice         | decimal           | not null                                     | Final quoted price                        |
+| depositAmount      | decimal           | not null (typically 10% of totalPrice)       | Security deposit amount                   |
+| status             | enum              | PENDING \| APPROVED \| REJECTED \| COMPLETED | Booking lifecycle                         |
+| stripePaymentId    | string            | nullable                                     | Reference to deposit payment              |
+| notes              | text              | nullable                                     | Additional info / special requests        |
+| approvedBy         | uuid / number     | FK → User.id (nullable)                      | Sales/admin who approved                  |
+| createdAt          | timestamp         | default now                                  |                                           |
+| updatedAt          | timestamp         | on update                                    |                                           |
 
-# Car Rental System - Core Modules & Responsibilities (MVP Focus)
+**Relationships**  
+- Vehicle 1 → Many Bookings  
+- Optional: Sales User (approvedBy) 1 → Many Bookings
 
-## 1. Auth (Authentication & Authorization)
+## 5. Payment
+
+| Field         | Type              | Constraints / Notes                          | Description / Purpose                     |
+|---------------|-------------------|----------------------------------------------|-------------------------------------------|
+| id            | uuid / number     | Primary key, auto-generated                  | Unique identifier                         |
+| bookingId     | uuid / number     | FK → Booking.id, not null, unique            | One payment per booking (deposit only)    |
+| amount        | decimal           | not null                                     | Deposit amount (matches Booking.depositAmount) |
+| status        | enum              | PENDING \| PAID \| FAILED \| REFUNDED        | Payment state                             |
+| transactionId | string            | nullable                                     | Stripe payment intent / charge ID         |
+| paidAt        | timestamp         | nullable                                     | When payment was confirmed                |
+| createdAt     | timestamp         | default now                                  |                                           |
+| updatedAt     | timestamp         | on update                                    |                                           |
+
+**Relationships**  
+- 1:1 with Booking (deposit-focused)
+
+## 6. MaintenanceRecord
+
+| Field         | Type              | Constraints / Notes                          | Description / Purpose                     |
+|---------------|-------------------|----------------------------------------------|-------------------------------------------|
+| id            | uuid / number     | Primary key, auto-generated                  | Unique identifier                         |
+| vehicleId     | uuid / number     | FK → Vehicle.id, not null                    | Which vehicle                             |
+| date          | date / datetime   | not null                                     | Service/repair date                       |
+| type          | string / enum     | SERVICE \| REPAIR \| INSPECTION …            | Maintenance category                      |
+| cost          | decimal           | nullable                                     | Cost of service                           |
+| notes         | text              | nullable                                     | Description, parts, issues                |
+| reportedBy    | uuid / number     | FK → User.id (nullable)                      | Sales/admin who recorded                  |
+| createdAt     | timestamp         | default now                                  |                                           |
+| updatedAt     | timestamp         | on update                                    |                                           |
+
+**Relationships**  
+- Vehicle 1 → Many MaintenanceRecords  
+- User (sales) 1 → Many MaintenanceRecords
+
+## 7. DamageReport (Phase 2)
+
+| Field         | Type              | Constraints / Notes                          | Description / Purpose                     |
+|---------------|-------------------|----------------------------------------------|-------------------------------------------|
+| id            | uuid / number     | Primary key, auto-generated                  | Unique identifier                         |
+| bookingId     | uuid / number     | FK → Booking.id, not null                    | Which rental                              |
+| description   | text              | not null                                     | Damage details                            |
+| images        | json / text[]     | nullable (array of URLs)                     | Photos of damage                          |
+| costEstimate  | decimal           | nullable                                     | Estimated repair cost                     |
+| createdAt     | timestamp         | default now                                  |                                           |
+| updatedAt     | timestamp         | on update                                    |                                           |
+
+**Relationships**  
+- Booking 1 → Many DamageReports  
+**Note**: Handled by sales post-approval (Phase 2 priority)
+
+# Updated User Flows (MVP)
+## Anonymous Customer Flow (public pages):
+
+1. Browse/search cars with filters (make, model, price range, location, dates, tags like 'automatic').
+2. Select car → view details (photos, rates).
+3. Fill minimal form: dates, pickup/return, guest phone (required for sales contact), optional name/email.
+4. Calculate total + 10% deposit → redirect to Stripe checkout (hosted or elements).
+5. On success: booking created as PENDING → confirmation page/email with ref number.
+6. No account – no history view.
+
+## Admin Flow (protected /admin routes):
+
+1. Login (email/password).
+2. Dashboard: overview (pending bookings, fleet status).
+3. Manage sales team: add (email, password, phone), edit status, remove.
+4. Manage vehicles: add/remove/edit, upload photos (via storage), update status.
+5. View/approve bookings (but delegate to sales mostly).
+
+## Sales Team Flow (protected /admin routes, role-guarded):
+
+1. Login (email/password).
+2. Dashboard: list pending bookings with guest phone, vehicle, dates, deposit status.
+3. View booking details → call guest manually (copy phone) for negotiation.
+4. Approve/reject (update status, add notes).
+5. Report maintenance/damages for vehicles.
+6. View assigned/completed bookings.
+
+
+# Car Rental System - Revised NestJS Modules (apps/api/src/modules/)
+
+Adjusted priorities:  
+- Guest/anonymous bookings (no customer authentication or profiles)  
+- Only admin & sales staff have accounts & login  
+- Public endpoints for vehicle search, booking creation, pricing, deposit payment  
+- Protected endpoints for sales/admin operations
+
+## 1. Auth
 
 **Main Responsibilities**  
-- User registration (email + password + phone)  
-- Login / logout  
-- Token refresh (JWT or similar)  
-- Role-based access control (CUSTOMER / ADMIN / DRIVER)  
-- Email verification  
-- Phone verification (OTP)  
-- Driving license upload + basic validation (for future DRIVER role)  
+- Login endpoint for admin/sales (email + password → JWT)  
+- Token refresh  
+- Role guards (ADMIN | SALES)  
+- Protected routes decorator  
 
 **MVP?** Yes  
-**Depends on** — (core foundation)  
+**Changes / Notes**  
+- Remove all customer register/login flows  
+- Only internal staff authentication
 
 ## 2. Users
 
 **Main Responsibilities**  
-- Customer profile view/edit (address, ID card/passport upload)  
-- KYC document upload & verification flow (admin approval or automated checks)  
-- Admin profile & management  
-- Basic user listing & search (admin only)  
+- Admin: CRUD operations for sales team members  
+  - Create new sales account  
+  - Edit profile/status  
+  - Deactivate/reactivate  
+  - List all sales users  
+- Basic profile view for logged-in user (self)  
 
 **MVP?** Yes  
-**Depends on** Auth  
+**Changes / Notes**  
+- Only for internal users (ADMIN creates SALES)  
+- No customer-related user data or endpoints
 
 ## 3. Vehicles
 
 **Main Responsibilities**  
-- Admin: Full CRUD for vehicles (create, update, delete, upload multiple images)  
-- Public/Customer: Search & filter vehicles  
-  - By location  
-  - By availability (date range)  
-  - By price range  
-  - By make/model  
-  - By seats / fuel type / transmission  
-- Real-time availability check (not booked/rented/maintenance during requested period)  
-- Vehicle detail view with images, specs, rates  
+- Admin/Sales: Full CRUD (create, read, update, delete, upload images)  
+- Public:  
+  - Search & filter vehicles (location, dates, price, make, filters/tags)  
+  - Get vehicle details by ID  
+  - Check availability for date range  
+- Admin/Sales: Update status (AVAILABLE → MAINTENANCE etc.)  
 
 **MVP?** Yes  
-**Depends on** Locations (for filtering), Bookings (for availability logic)  
+**Changes / Notes**  
+- Public search & detail endpoints (no auth required)  
+- Availability logic critical for booking flow
 
 ## 4. Locations
 
 **Main Responsibilities**  
-- Admin: CRUD for branches / pickup & return points  
-- Public: List all active locations (with name, address, coordinates, hours)  
-- Used for vehicle assignment & booking pickup/return selection  
+- Public: List all active locations (name, address, coordinates)  
+- Admin/Sales: CRUD for branches/pickup points  
 
 **MVP?** Yes  
-**Depends on** —  
+**Changes / Notes**  
+- Public list endpoint (used in frontend search/booking)  
+- Minimal changes from previous plan
 
 ## 5. Bookings
 
 **Main Responsibilities**  
-- Create booking (select vehicle + dates + pickup/return locations)  
-- Conflict & availability check  
-- Price calculation (based on duration + vehicle rate + extras)  
-- Status transitions:  
-  PENDING → APPROVED → ONGOING → COMPLETED / CANCELLED / OVERDUE  
-- Customer cancel (before start, with policy rules)  
-- Admin force cancel / mark return / mark overdue  
-- Record actual return datetime  
+- Public (anonymous):  
+  - Create booking (guestName, guestPhone, guestEmail?, vehicleId, dates, pickupLocation, totalPrice, depositAmount)  
+  - Return booking preview with calculated price & deposit  
+- Sales:  
+  - List pending/approved/rejected bookings  
+  - Approve / Reject bookings  
+  - Update status (e.g. mark as COMPLETED on return)  
+  - View booking details  
+- Auto-generate notes or status logs if needed  
 
 **MVP?** Yes  
-**Depends on** Vehicles, Users, Pricing  
+**Changes / Notes**  
+- Public create endpoint (no JWT required)  
+- Guest info stored directly in Booking  
+- Sales-only approval & management
 
 ## 6. Pricing
 
 **Main Responsibilities**  
-- Define base rates per vehicle (daily, optional hourly)  
-- Apply rules:  
-  - Seasonal multipliers  
-  - Weekend / holiday surcharges  
-  - Long-term discounts  
-- Handle extras:  
-  - Insurance options  
-  - Additional driver  
-  - Fuel policy (full-to-full, etc.)  
-  - Child seat / GPS  
-- Calculate total price during booking creation & preview  
+- Public: Calculate rental price & deposit  
+  - Based on vehicle dailyRate + duration  
+  - Apply any simple rules (future: seasonal, extras)  
+- Return breakdown (base price, deposit 10%, total)  
 
 **MVP?** Yes  
-**Depends on** — (but tightly coupled with Bookings)  
+**Changes / Notes**  
+- Exposed as public endpoint (used before/ during booking creation)  
+- Keep simple in MVP (no complex rules yet)
 
 ## 7. Payments
 
 **Main Responsibilities**  
-- Integrate payment gateway (e.g. Chapa, Stripe, Telebirr, etc. — Ethiopia-friendly)  
-- Handle:  
-  - Security deposit (hold or charge)  
-  - Full/partial payment at booking  
-  - Final balance on return (if needed)  
-- Process refunds (full/partial for cancellations)  
-- Store transaction references & status  
-- Payment confirmation → trigger booking status update  
+- Public:  
+  - Create Stripe PaymentIntent for deposit amount  
+  - Return client_secret for frontend checkout  
+- Webhook:  
+  - Handle Stripe payment success → update Booking & Payment status  
+  - Handle failure/refund if needed  
+- Sales: View payment status per booking  
 
 **MVP?** Yes  
-**Depends on** Bookings  
+**Changes / Notes**  
+- Deposit-only focus (10%)  
+- Full payment remains off-system (cash on pickup or similar)  
+- Public checkout initiation endpoint
 
 ## 8. Notifications
 
 **Main Responsibilities**  
-- Send email & SMS for key events:  
-  - Booking created / approved  
-  - Payment received  
-  - Booking starting soon reminder  
-  - Vehicle return due  
-  - Overdue alerts  
-  - Damage report submitted / resolved  
+- On booking create: email/SMS to guest (using guestEmail/guestPhone)  
+- On approve/reject: notify guest  
+- Optional: SMS reminder before pickup (future)  
 
-**MVP?** Partial (at least email; SMS optional in MVP)  
-**Depends on** —  
+**MVP?** Partial  
+**Changes / Notes**  
+- Use guest contact info directly  
+- Email mandatory, SMS nice-to-have (depends on provider like Twilio/Chapa SMS)
 
 ## 9. Dashboard
 
 **Main Responsibilities**  
-- **Customer Dashboard**  
-  - My active & past bookings  
-  - Upcoming rentals  
-  - Booking history & invoices  
-- **Admin Dashboard**  
-  - Overview stats (active rentals, revenue today/this month)  
-  - Pending approvals  
-  - Fleet status (available / rented / maintenance)  
-  - Overdue bookings  
-  - Recent damage reports  
+- Protected (sales/admin):  
+  - Overview stats (pending bookings, active rentals, revenue from deposits)  
+  - List pending approvals  
+  - Fleet status summary  
+  - Recent bookings  
 
 **MVP?** Yes  
-**Depends on** All above modules  
+**Changes / Notes**  
+- No customer dashboard (removed)  
+- Only internal staff views
 
 ## Phase 2 / Future Modules
 
-### Damages & Inspections
-- Post-return damage reporting (customer or admin)  
-- Photo upload  
-- Cost estimation & assignment  
-- Resolution workflow (charge customer or insurance)  
-
-**Phase** 2  
-**Depends on** Bookings  
-
 ### Maintenance
-- Schedule & record services/repairs  
-- Update vehicle status & availability  
-- Track mileage & service history  
+- Sales: Create/maintain records for vehicles  
+- Update vehicle status & availability impact  
+- List history per vehicle  
 
 **Phase** 2  
-**Depends on** Vehicles  
-
-### Reports / Analytics
-- Revenue reports (daily/weekly/monthly)  
-- Fleet utilization rate  
-- Most/least popular vehicles  
-- Overdue & cancellation stats  
-- Payment success/failure trends  
-
-**Phase** 2  
-**Depends on** Bookings, Payments
+**Changes / Notes**  
+- Tied to SALES role
