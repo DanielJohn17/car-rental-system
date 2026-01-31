@@ -1,16 +1,14 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import {
-  User,
-  CustomerProfile,
-  Location,
-  Vehicle,
-  Booking,
-  Payment,
-  DamageReport,
-  MaintenanceRecord,
-} from '../entities';
+import { User } from '../auth/entities/user.entity';
+import { CustomerProfile } from '../users/entities/customer-profile.entity';
+import { Location } from '../locations/entities/location.entity';
+import { Vehicle } from '../vehicle/entities/vehicle.entity';
+import { MaintenanceRecord } from '../vehicle/entities/maintenance-record.entity';
+import { Booking } from '../bookings/entities/booking.entity';
+import { Payment } from '../payments/entities/payment.entity';
+import { DamageReport } from '../dashboard/entities/damage-report.entity';
 
 @Module({
   imports: [
@@ -21,19 +19,18 @@ import {
       useFactory: (configService: ConfigService) => ({
         type: 'postgres' as const,
         url: configService.get<string>('DB_CONNECTION_STRING'),
-        ssl: configService.get<string>('DB_PGSSLMODE') === 'require',
         entities: [
           User,
           CustomerProfile,
           Location,
           Vehicle,
+          MaintenanceRecord,
           Booking,
           Payment,
           DamageReport,
-          MaintenanceRecord,
         ],
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
-        logging: configService.get<string>('NODE_ENV') === 'development',
+        // logging: configService.get<string>('NODE_ENV') === 'development',
       }),
     }),
   ],
