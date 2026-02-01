@@ -67,8 +67,11 @@ export class User {
   })
   customerProfile: CustomerProfile;
 
-  @OneToMany(() => Booking, (booking) => booking.user, { cascade: true })
-  bookings: Booking[];
+  @OneToMany(() => Booking, (booking) => booking.approver, {
+    cascade: true,
+    nullable: true,
+  })
+  approvedBookings: Booking[];
 
   @OneToMany(() => DamageReport, (report) => report.reporter, {
     cascade: true,

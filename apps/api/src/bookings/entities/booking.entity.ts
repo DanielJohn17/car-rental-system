@@ -25,17 +25,25 @@ export enum BookingStatus {
 }
 
 @Entity('bookings')
-@Index(['userId'])
 @Index(['vehicleId'])
 @Index(['status'])
 @Index(['startDateTime', 'endDateTime'])
+@Index(['guestPhone'])
 export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid' })
-  userId: string;
+  // Guest info (anonymous booking - no User required)
+  @Column({ nullable: true })
+  guestName: string;
 
+  @Column()
+  guestPhone: string;
+
+  @Column({ nullable: true })
+  guestEmail: string;
+
+  // Booking details
   @Column({ type: 'uuid' })
   vehicleId: string;
 
@@ -51,6 +59,17 @@ export class Booking {
   @Column({ type: 'uuid' })
   returnLocationId: string;
 
+  // Pricing & Payment
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  totalPrice: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  depositAmount: number;
+
+  @Column({ nullable: true })
+  stripePaymentId: string;
+
+  // Status & Approval
   @Column({
     type: 'enum',
     enum: BookingStatus,
@@ -58,8 +77,8 @@ export class Booking {
   })
   status: BookingStatus;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
-  totalPrice: number;
+  @Column({ type: 'uuid', nullable: true })
+  approvedBy: string;
 
   @Column({ type: 'timestamp', nullable: true })
   actualReturnDateTime: Date;
@@ -74,9 +93,12 @@ export class Booking {
   updatedAt: Date;
 
   // Relations
-  @ManyToOne(() => User, (user) => user.bookings, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
-  user: User;
+  @ManyToOne(() => User, (user) => user.approvedBookings, {
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  @JoinColumn({ name: 'approvedBy' })
+  approver: User;
 
   @ManyToOne(() => Vehicle, (vehicle) => vehicle.bookings)
   @JoinColumn({ name: 'vehicleId' })
