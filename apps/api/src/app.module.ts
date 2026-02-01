@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { LocationsModule } from './locations/locations.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { PricingModule } from './pricing/pricing.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -24,6 +25,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     UsersModule,
     LocationsModule,
     BookingsModule,
+    PricingModule,
     PaymentsModule,
     DashboardModule,
     NotificationsModule,
