@@ -21,7 +21,6 @@ import {
 import { VehicleService } from './vehicle.service';
 import { JwtGuard } from '../auth/guards/jwt.guard';
 import { createRoleGuard } from '../auth/guards/role.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '../auth/entities/user.entity';
 import {
   CreateVehicleDto,
@@ -120,9 +119,12 @@ export class VehicleController {
 
   /**
    * Get vehicle by ID (PUBLIC)
-   * GET /vehicles/:id
    */
   @Get(':id')
+  @ApiOperation({ summary: 'Get vehicle details by ID' })
+  @ApiParam({ name: 'id', description: 'Vehicle UUID' })
+  @ApiResponse({ status: 200, description: 'Vehicle details', type: Vehicle })
+  @ApiResponse({ status: 404, description: 'Vehicle not found' })
   async getById(@Param('id') id: string): Promise<Vehicle> {
     return this.vehicleService.findById(id);
   }
@@ -263,10 +265,18 @@ export class VehicleController {
 
   /**
    * Update vehicle (ADMIN/SALES only)
-   * PUT /vehicles/:id
    */
   @Put(':id')
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @ApiOperation({ summary: 'Update vehicle (Admin/Sales only)' })
+  @ApiParam({ name: 'id', description: 'Vehicle UUID' })
+  @ApiBody({ type: UpdateVehicleDto })
+  @ApiResponse({ status: 200, description: 'Vehicle updated', type: Vehicle })
+  @ApiResponse({ status: 404, description: 'Vehicle not found' })
+  @ApiResponse({
+    status: 409,
+    description: 'License plate or VIN already in use',
+  })
   async update(
     @Param('id') id: string,
     @Body() updateVehicleDto: UpdateVehicleDto,
@@ -276,51 +286,122 @@ export class VehicleController {
 
   /**
    * Delete vehicle (ADMIN only)
-   * DELETE /vehicles/:id
    */
   @Delete(':id')
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
+  @ApiOperation({ summary: 'Delete vehicle (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Vehicle UUID' })
+  @ApiResponse({ status: 200, description: 'Vehicle deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Vehicle not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot delete vehicle with active bookings',
+  })
   async delete(@Param('id') id: string): Promise<void> {
     return this.vehicleService.delete(id);
   }
 
   /**
    * Update vehicle status (ADMIN/SALES only)
-   * PATCH /vehicles/:id/status
-   * Body: { status: "AVAILABLE" | "MAINTENANCE" | "RENTED" | "DAMAGED" | "RESERVED" }
    */
   @Put(':id/status')
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @ApiOperation({ summary: 'Update vehicle status (Admin/Sales only)' })
+  @ApiParam({ name: 'id', description: 'Vehicle UUID' })
+  @ApiBody({
+    schema: {
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['AVAILABLE', 'RENTED', 'MAINTENANCE', 'DAMAGED', 'RESERVED'],
+          description: 'Vehicle status',
+        },
+      },
+      required: ['status'],
+    },
+    examples: {
+      example1: { value: { status: 'AVAILABLE' } },
+      example2: { value: { status: 'MAINTENANCE' } },
+      example3: { value: { status: 'RENTED' } },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Vehicle status updated',
+    type: Vehicle,
+  })
+  @ApiResponse({ status: 404, description: 'Vehicle not found' })
+  @ApiResponse({ status: 400, description: 'Invalid status value' })
   async updateStatus(
     @Param('id') id: string,
     @Body('status') status: VehicleStatus,
   ): Promise<Vehicle> {
     if (!Object.values(VehicleStatus).includes(status)) {
-      throw new BadRequestException(`Invalid status: ${status}`);
+      throw new BadRequestException(
+        `Invalid status: ${status}. Allowed values: ${Object.values(VehicleStatus).join(', ')}`,
+      );
     }
     return this.vehicleService.updateStatus(id, status);
   }
 
   /**
    * Update vehicle mileage (ADMIN/SALES only)
-   * PUT /vehicles/:id/mileage
-   * Body: { mileage: 50000 }
    */
   @Put(':id/mileage')
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @ApiOperation({ summary: 'Update vehicle mileage (Admin/Sales only)' })
+  @ApiParam({ name: 'id', description: 'Vehicle UUID' })
+  @ApiBody({
+    schema: {
+      properties: {
+        mileage: {
+          type: 'number',
+          description: 'Current vehicle mileage (cannot decrease)',
+          minimum: 0,
+        },
+      },
+      required: ['mileage'],
+    },
+    examples: {
+      example1: { value: { mileage: 50000 } },
+      example2: { value: { mileage: 55000 } },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Vehicle mileage updated',
+    type: Vehicle,
+  })
+  @ApiResponse({ status: 404, description: 'Vehicle not found' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid mileage (negative or decreasing)',
+  })
   async updateMileage(
     @Param('id') id: string,
     @Body('mileage') mileage: number,
   ): Promise<Vehicle> {
+    if (typeof mileage !== 'number' || mileage < 0) {
+      throw new BadRequestException('Mileage must be a positive number');
+    }
     return this.vehicleService.updateMileage(id, mileage);
   }
 
   /**
    * Get maintenance records for a vehicle (ADMIN/SALES only)
-   * GET /vehicles/:id/maintenance
    */
   @Get(':id/maintenance')
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @ApiOperation({
+    summary: 'Get maintenance records for vehicle (Admin/Sales only)',
+  })
+  @ApiParam({ name: 'id', description: 'Vehicle UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of maintenance records',
+    type: [MaintenanceRecord],
+  })
+  @ApiResponse({ status: 404, description: 'Vehicle not found' })
   async getMaintenanceRecords(
     @Param('id') vehicleId: string,
   ): Promise<MaintenanceRecord[]> {

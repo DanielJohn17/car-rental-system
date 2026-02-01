@@ -5,9 +5,12 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, And, LessThan, MoreThan, In } from 'typeorm';
+import { Repository, LessThan, MoreThan, In } from 'typeorm';
 import { Vehicle, VehicleStatus } from './entities/vehicle.entity';
-import { MaintenanceRecord } from './entities/maintenance-record.entity';
+import {
+  MaintenanceRecord,
+  MaintenanceType,
+} from './entities/maintenance-record.entity';
 import { Booking, BookingStatus } from '../bookings/entities/booking.entity';
 import {
   CreateVehicleDto,
@@ -309,7 +312,7 @@ export class VehicleService {
     const end = new Date(endDate);
 
     // Get all vehicles with AVAILABLE status at the location
-    let query = this.vehicleRepository
+    const query = this.vehicleRepository
       .createQueryBuilder('vehicle')
       .leftJoinAndSelect('vehicle.location', 'location')
       .where('vehicle.status = :status', { status: VehicleStatus.AVAILABLE });
@@ -378,6 +381,10 @@ export class VehicleService {
   async getMaintenanceRecords(vehicleId: string): Promise<MaintenanceRecord[]> {
     const vehicle = await this.findById(vehicleId);
 
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
     return this.maintenanceRepository.find({
       where: { vehicleId },
       order: { date: 'DESC' },
@@ -396,9 +403,17 @@ export class VehicleService {
   ): Promise<MaintenanceRecord> {
     const vehicle = await this.findById(vehicleId);
 
+    if (!vehicle) {
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    if (mileageAtTime < vehicle.mileage) {
+      throw new BadRequestException('Mileage at time cannot decrease');
+    }
+
     const record = new MaintenanceRecord();
     record.vehicleId = vehicleId;
-    record.type = type as any;
+    record.type = type as MaintenanceType;
     record.cost = cost;
     record.mileageAtTime = mileageAtTime;
     record.notes = notes;
