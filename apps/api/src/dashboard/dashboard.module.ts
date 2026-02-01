@@ -1,18 +1,15 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BookingsModule } from '../bookings/bookings.module';
-import { PaymentsModule } from '../payments/payments.module';
-import { VehicleModule } from '../vehicle/vehicle.module';
+import { Booking } from '../bookings/entities/booking.entity';
+import { Payment } from '../payments/entities/payment.entity';
+import { Vehicle } from '../vehicle/entities/vehicle.entity';
 import { DamageReport } from './entities/damage-report.entity';
 import { DashboardService } from './dashboard.service';
 import { DashboardController } from './dashboard.controller';
 
 @Module({
   imports: [
-    BookingsModule,
-    PaymentsModule,
-    VehicleModule,
-    TypeOrmModule.forFeature([DamageReport]),
+    TypeOrmModule.forFeature([Booking, Payment, Vehicle, DamageReport]),
   ],
   providers: [DashboardService],
   controllers: [DashboardController],
