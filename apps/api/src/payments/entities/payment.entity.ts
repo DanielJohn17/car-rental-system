@@ -36,8 +36,8 @@ export class Payment {
   @Column({ type: 'uuid' })
   bookingId: string;
 
-  @Column({ type: 'uuid' })
-  userId: string;
+  @Column({ type: 'uuid', nullable: true })
+  userId: string | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount: number;
@@ -58,6 +58,12 @@ export class Payment {
   @Column({ type: 'timestamp', nullable: true })
   paidAt: Date;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  commissionAmount: number | null;
+
+  @Column({ nullable: true })
+  stripeConnectedAccountId: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
@@ -72,7 +78,8 @@ export class Payment {
   booking: Booking;
 
   @ManyToOne(() => User, (user) => user.payments, {
-    onDelete: 'CASCADE',
+    onDelete: 'SET NULL',
+    nullable: true,
   })
   @JoinColumn({ name: 'userId' })
   user: User;

@@ -54,6 +54,9 @@ export class User {
   @Column({ nullable: true, type: 'uuid' })
   createdBy: string;
 
+  @Column({ nullable: true })
+  stripeConnectAccountId: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

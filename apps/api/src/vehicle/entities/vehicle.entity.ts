@@ -12,6 +12,7 @@ import {
 import { Location } from '../../locations/entities/location.entity';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { MaintenanceRecord } from './maintenance-record.entity';
+import { User } from '../../auth/entities/user.entity';
 
 export enum FuelType {
   PETROL = 'PETROL',
@@ -78,6 +79,9 @@ export class Vehicle {
   @Column({ type: 'uuid' })
   locationId: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  ownerId: string;
+
   @Column({
     type: 'enum',
     enum: VehicleStatus,
@@ -101,6 +105,10 @@ export class Vehicle {
   @ManyToOne(() => Location, (location) => location.vehicles)
   @JoinColumn({ name: 'locationId' })
   location: Location;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'ownerId' })
+  owner: User;
 
   @OneToMany(() => Booking, (booking) => booking.vehicle)
   bookings: Booking[];
