@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { cn } from "../lib/utils";
+import { cn } from "@/lib/utils";
 import { Car, User } from "lucide-react";
 
 interface ImagePlaceholderProps {
@@ -65,7 +65,13 @@ export function ImagePlaceholder({
           style={{ width, height }}
         >
           <div className="animate-pulse flex flex-col items-center justify-center text-muted-foreground">
-            <IconComponent className="h-8 w-8 mb-2 opacity-30" />
+            {variant === "vehicle" ? (
+              <Car className="h-8 w-8 mb-2 opacity-30" />
+            ) : variant === "user" ? (
+              <User className="h-8 w-8 mb-2 opacity-30" />
+            ) : (
+              <Car className="h-8 w-8 mb-2 opacity-30" />
+            )}
             <span className="text-xs">Loading...</span>
           </div>
         </div>

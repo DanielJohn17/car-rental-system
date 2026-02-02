@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { apiFetch } from "../../../../lib/api";
-import { PageContainer } from "../../../../components/page-container";
-import { SiteHeader } from "../../../../components/site-header";
-import { Button } from "../../../../components/ui/button";
+import { apiFetch } from "@/lib/api";
+import { PageContainer } from "@/components/page-container";
+import { SiteHeader } from "@/components/site-header";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "../../../../components/ui/card";
-import { VehicleImagePlaceholder } from "../../../../components/image-placeholder";
+} from "@/components/ui/card";
+import { VehicleImagePlaceholder } from "@/components/image-placeholder";
 
 type Vehicle = {
   id: string;

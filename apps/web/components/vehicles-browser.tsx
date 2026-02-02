@@ -1,10 +1,10 @@
-import { apiFetch } from "../lib/api";
-import { toUserErrorMessage } from "../lib/errors";
-import { PageContainer } from "./page-container";
-import { SiteHeader } from "./site-header";
-import { InlineError } from "./inline-error";
-import { VehicleCard, type VehicleSummary } from "./vehicle-card";
-import { VehicleFilters, type LocationOption } from "./vehicle-filters";
+import { apiFetch } from "@/lib/api";
+import { toUserErrorMessage } from "@/lib/errors";
+import { PageContainer } from "@/components/page-container";
+import { SiteHeader } from "@/components/site-header";
+import { InlineError } from "@/components/inline-error";
+import { VehicleCard, type VehicleSummary } from "@/components/vehicle-card";
+import { VehicleFilters, type LocationOption } from "@/components/vehicle-filters";
 
 type VehicleSearchResponse = {
   data: VehicleSummary[];
