@@ -7,6 +7,24 @@ import type {
   StripeWebhookPayload,
 } from '@car-rental/types';
 
+type CreateCheckoutSessionInput = {
+  amount: number;
+  currency: string;
+  connectedAccountId?: string;
+  applicationFeeAmount?: number;
+  metadata: Record<string, string>;
+  description: string;
+  successUrl: string;
+  cancelUrl: string;
+  customerEmail?: string;
+};
+
+type CheckoutSessionResult = {
+  url: string;
+  sessionId: string;
+  paymentIntentId: string;
+};
+
 @Injectable()
 export class StripeService {
   private stripe: Stripe;
@@ -24,10 +42,64 @@ export class StripeService {
         'STRIPE_API_KEY or STRIPE_WEBHOOK_SECRET not configured',
       );
     }
+
     this.stripe = new Stripe(apiKey || '', {
       apiVersion: '2023-10-16',
     });
     this.webhookSecret = webhookSecret || '';
+  }
+  async createCheckoutSession(
+    input: CreateCheckoutSessionInput,
+  ): Promise<CheckoutSessionResult> {
+    const params: Stripe.Checkout.SessionCreateParams = {
+      mode: 'payment',
+      success_url: input.successUrl,
+      cancel_url: input.cancelUrl,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: input.currency.toLowerCase(),
+            unit_amount: input.amount,
+            product_data: {
+              name: input.description,
+            },
+          },
+        },
+      ],
+      payment_intent_data: {
+        description: input.description,
+        metadata: input.metadata,
+      },
+    };
+
+    if (input.customerEmail) {
+      params.customer_email = input.customerEmail;
+    }
+
+    if (input.applicationFeeAmount) {
+      params.payment_intent_data = {
+        ...params.payment_intent_data,
+        application_fee_amount: input.applicationFeeAmount,
+      };
+    }
+
+    const session = input.connectedAccountId
+      ? await this.stripe.checkout.sessions.create(params, {
+          stripeAccount: input.connectedAccountId,
+        })
+      : await this.stripe.checkout.sessions.create(params);
+
+    const paymentIntentId =
+      typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id || '';
+
+    return {
+      url: session.url || '',
+      sessionId: session.id,
+      paymentIntentId,
+    };
   }
 
   async createExpressConnectAccount(input: {

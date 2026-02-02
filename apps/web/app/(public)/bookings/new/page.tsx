@@ -2,13 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { loadStripe } from "@stripe/stripe-js";
-import {
-  Elements,
-  PaymentElement,
-  useElements,
-  useStripe,
-} from "@stripe/react-stripe-js";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { CalendarIcon } from "lucide-react";
@@ -66,18 +59,12 @@ type Booking = {
   id: string;
 };
 
-type PaymentIntentResponse = {
-  clientSecret: string;
+type CheckoutSessionResponse = {
+  url: string;
+  sessionId: string;
   paymentIntentId: string;
-  amount: number;
-  currency: string;
-  status: string;
   bookingId: string;
 };
-
-const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
-  : null;
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
@@ -94,63 +81,9 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
-function CheckoutForm({
-  bookingId,
-  onPaid,
-}: {
-  bookingId: string;
-  onPaid: () => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    if (!stripe || !elements) {
-      setError("Stripe has not loaded yet");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const result = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/confirmation/${bookingId}`,
-        },
-        redirect: "if_required",
-      });
-
-      if (result.error) {
-        setError(result.error.message ?? "Payment failed");
-        return;
-      }
-
-      onPaid();
-      router.push(`/confirmation/${bookingId}`);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <form onSubmit={onSubmit} className="grid gap-3">
-      <PaymentElement />
-      <Button type="submit" disabled={!stripe || !elements || loading}>
-        {loading ? "Processing..." : "Pay deposit"}
-      </Button>
-      <InlineError message={error} />
-    </form>
-  );
-}
-
 export default function NewBookingPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const vehicleId = searchParams.get("vehicleId") ?? "";
 
@@ -163,8 +96,7 @@ export default function NewBookingPage() {
 
   const [pricing, setPricing] = useState<PricingBreakdown | null>(null);
   const [bookingId, setBookingId] = useState<string | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const locationParams = useMemo(() => ({ limit: 100, offset: 0 }), []);
@@ -233,8 +165,7 @@ export default function NewBookingPage() {
   useEffect(() => {
     setPricing(null);
     setBookingId(null);
-    setClientSecret(null);
-    setPaymentIntentId(null);
+    setCheckoutUrl(null);
   }, [dateRange?.from, dateRange?.to]);
 
   const pricingMutation = useMutation({
@@ -267,8 +198,9 @@ export default function NewBookingPage() {
     }) => {
       const booking = await postJson<Booking>("/api/public/bookings", input);
       const depositCents = Math.round(input.depositAmount * 100);
-      const intent = await postJson<PaymentIntentResponse>(
-        "/api/public/payments/create-intent",
+
+      const session = await postJson<CheckoutSessionResponse>(
+        "/api/public/payments/create-checkout-session",
         {
           bookingId: booking.id,
           amount: depositCents,
@@ -276,16 +208,12 @@ export default function NewBookingPage() {
         },
       );
 
-      return {
-        bookingId: booking.id,
-        clientSecret: intent.clientSecret,
-        paymentIntentId: intent.paymentIntentId,
-      };
+      return session;
     },
     onSuccess: (data) => {
       setBookingId(data.bookingId);
-      setClientSecret(data.clientSecret);
-      setPaymentIntentId(data.paymentIntentId);
+      setCheckoutUrl(data.url);
+      window.location.assign(data.url);
     },
     onError: (e: unknown) => {
       setError(toUserErrorMessage(e, "Booking failed"));
@@ -517,8 +445,8 @@ export default function NewBookingPage() {
                   <Button type="button" variant="outline" onClick={calculate} disabled={!canCalculate || loading}>
                     {loading ? "Calculating..." : "Calculate pricing"}
                   </Button>
-                  <Button type="button" onClick={submit} disabled={!pricing || loading || Boolean(clientSecret)}>
-                    {loading ? "Working..." : "Create booking"}
+                  <Button type="button" onClick={submit} disabled={!pricing || loading || Boolean(checkoutUrl)}>
+                    {loading ? "Working..." : "Pay deposit"}
                   </Button>
                 </div>
 
@@ -544,27 +472,33 @@ export default function NewBookingPage() {
               </Card>
             ) : null}
 
-            {clientSecret ? (
+            {checkoutUrl ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Pay deposit</CardTitle>
+                  <CardTitle className="text-lg">Redirecting to Stripe</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {!stripePromise ? (
-                    <InlineError message="Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" />
-                  ) : (
-                    <Elements
-                      stripe={stripePromise}
-                      options={{ clientSecret, appearance: { theme: "stripe" } }}
+                <CardContent className="text-sm text-muted-foreground">
+                  <div>
+                    If you are not redirected automatically, use the link below.
+                  </div>
+                  <div className="mt-3">
+                    <Button asChild variant="outline">
+                      <a href={checkoutUrl}>Continue to payment</a>
+                    </Button>
+                  </div>
+                  <div className="mt-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        if (bookingId) {
+                          router.push(`/confirmation/${bookingId}`);
+                        }
+                      }}
                     >
-                      <CheckoutForm
-                        bookingId={bookingId ?? ""}
-                        onPaid={() => {
-                          void paymentIntentId;
-                        }}
-                      />
-                    </Elements>
-                  )}
+                      I already paid
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ) : null}

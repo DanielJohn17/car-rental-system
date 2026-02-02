@@ -23,7 +23,9 @@ import { createRoleGuard } from '../auth/guards/role.guard';
 import { UserRole } from '../auth/entities/user.entity';
 import {
   CreatePaymentIntentDto,
+  CreateCheckoutSessionDto,
   PaymentIntentResponseDto,
+  CheckoutSessionResponseDto,
   PaymentStatusDto,
 } from './dtos';
 import type { PaymentIntentSucceededPayload } from '@car-rental/types';
@@ -71,6 +73,35 @@ export class PaymentsController {
     @Body() createDto: CreatePaymentIntentDto,
   ): Promise<PaymentIntentResponseDto> {
     return this.paymentsService.createPaymentIntent(createDto);
+  }
+
+  @Post('create-checkout-session')
+  @ApiOperation({
+    summary: 'Create Stripe Checkout Session for deposit',
+    description:
+      'Creates a Stripe Checkout Session URL for the booking deposit. Public endpoint.',
+  })
+  @ApiBody({
+    type: CreateCheckoutSessionDto,
+    description: 'Booking ID and deposit amount',
+  })
+  @ApiResponse({
+    status: 200,
+    type: CheckoutSessionResponseDto,
+    description: 'Checkout Session created successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Booking not found',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid booking status or amount mismatch',
+  })
+  async createCheckoutSession(
+    @Body() createDto: CreateCheckoutSessionDto,
+  ): Promise<CheckoutSessionResponseDto> {
+    return this.paymentsService.createCheckoutSession(createDto);
   }
 
   /**

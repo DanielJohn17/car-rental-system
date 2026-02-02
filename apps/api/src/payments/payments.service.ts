@@ -19,7 +19,9 @@ import { Vehicle } from '../vehicle/entities/vehicle.entity';
 import { User } from '../auth/entities/user.entity';
 import {
   CreatePaymentIntentDto,
+  CreateCheckoutSessionDto,
   PaymentIntentResponseDto,
+  CheckoutSessionResponseDto,
   PaymentStatusDto,
 } from './dtos';
 import type { PaymentIntentSucceededPayload } from '@car-rental/types';
@@ -44,6 +46,156 @@ export class PaymentsService {
   ) {
     this.commissionPercentage =
       this.configService.get<number>('COMMISSION_PERCENTAGE') || 10; // Default 10% commission
+  }
+
+  async createCheckoutSession(
+    createDto: CreateCheckoutSessionDto,
+  ): Promise<CheckoutSessionResponseDto> {
+    const booking = await this.bookingRepository.findOne({
+      where: { id: createDto.bookingId },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(
+        `Booking with ID ${createDto.bookingId} not found`,
+      );
+    }
+
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new BadRequestException(
+        `Cannot create payment for booking with status ${booking.status}. Only PENDING bookings can be paid.`,
+      );
+    }
+
+    if (createDto.amount !== Math.round(Number(booking.depositAmount) * 100)) {
+      throw new BadRequestException(
+        `Amount must match booking deposit amount (${booking.depositAmount} USD)`,
+      );
+    }
+
+    const existingPayment = await this.paymentRepository.findOne({
+      where: { bookingId: createDto.bookingId },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (existingPayment) {
+      throw new BadRequestException(
+        'Payment has already been initialized for this booking',
+      );
+    }
+
+    try {
+      const vehicle = await this.vehicleRepository.findOne({
+        where: { id: booking.vehicleId },
+        relations: ['owner'],
+      });
+
+      if (!vehicle) {
+        throw new NotFoundException(
+          `Vehicle with ID ${booking.vehicleId} not found`,
+        );
+      }
+
+      let adminStripeAccountId = '';
+      if (vehicle.owner?.stripeConnectAccountId) {
+        adminStripeAccountId = vehicle.owner.stripeConnectAccountId;
+      } else {
+        adminStripeAccountId =
+          this.configService.get<string>('STRIPE_ADMIN_ACCOUNT_ID') || '';
+      }
+
+      const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+      const isProduction = nodeEnv === 'production';
+      const useConnect = Boolean(adminStripeAccountId);
+
+      if (!useConnect) {
+        if (isProduction) {
+          throw new BadRequestException(
+            'No Stripe Connect account configured for vehicle owner. Configure Stripe Connect for the vehicle owner or set STRIPE_ADMIN_ACCOUNT_ID.',
+          );
+        }
+
+        this.logger.warn(
+          `No Stripe Connect account configured for vehicle owner; falling back to platform Stripe account for booking ${createDto.bookingId} (NODE_ENV=${nodeEnv}).`,
+        );
+      }
+
+      const commissionAmount = Math.round(
+        (createDto.amount * this.commissionPercentage) / 100,
+      );
+
+      const webAppUrl =
+        this.configService.get<string>('WEB_APP_URL') || 'http://localhost:3000';
+
+      const successUrl = new URL(
+        `/confirmation/${createDto.bookingId}`,
+        webAppUrl,
+      ).toString();
+      const cancelUrl = new URL(
+        `/bookings/new?vehicleId=${encodeURIComponent(booking.vehicleId)}`,
+        webAppUrl,
+      ).toString();
+
+      const session = await this.stripeService.createCheckoutSession({
+        amount: createDto.amount,
+        currency: 'USD',
+        connectedAccountId: useConnect ? adminStripeAccountId : undefined,
+        applicationFeeAmount: useConnect ? commissionAmount : undefined,
+        metadata: {
+          bookingId: createDto.bookingId,
+          vehicleId: booking.vehicleId,
+          ownerId: vehicle.ownerId || '',
+          guestEmail: booking.guestEmail || '',
+          guestPhone: booking.guestPhone,
+          commissionAmount: String(commissionAmount),
+        },
+        description: `Deposit for booking ${createDto.bookingId}`,
+        successUrl,
+        cancelUrl,
+        customerEmail: createDto.email || booking.guestEmail || undefined,
+      });
+
+      if (!session.url) {
+        throw new InternalServerErrorException(
+          'Stripe Checkout Session URL is missing',
+        );
+      }
+
+      const payment = this.paymentRepository.create({
+        bookingId: createDto.bookingId,
+        userId: null,
+        amount: Number(booking.depositAmount),
+        paymentMethod: PaymentMethod.CARD,
+        status: PaymentStatus.PENDING,
+        transactionId: session.paymentIntentId || null,
+        commissionAmount: Number(commissionAmount / 100),
+        stripeConnectedAccountId: useConnect ? adminStripeAccountId : null,
+      });
+
+      await this.paymentRepository.save(payment);
+
+      if (session.paymentIntentId) {
+        booking.stripePaymentId = session.paymentIntentId;
+        await this.bookingRepository.save(booking);
+      }
+
+      return {
+        url: session.url,
+        sessionId: session.sessionId,
+        paymentIntentId: session.paymentIntentId,
+        bookingId: createDto.bookingId,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to create checkout session: ${error}`);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new InternalServerErrorException(
+        'Failed to create Stripe checkout session',
+      );
+    }
   }
 
   /**
@@ -100,9 +252,19 @@ export class PaymentsService {
           this.configService.get<string>('STRIPE_ADMIN_ACCOUNT_ID') || '';
       }
 
-      if (!adminStripeAccountId) {
-        throw new BadRequestException(
-          'No Stripe Connect account configured for vehicle owner',
+      const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+      const isProduction = nodeEnv === 'production';
+      const useConnect = Boolean(adminStripeAccountId);
+
+      if (!useConnect) {
+        if (isProduction) {
+          throw new BadRequestException(
+            'No Stripe Connect account configured for vehicle owner. Configure Stripe Connect for the vehicle owner or set STRIPE_ADMIN_ACCOUNT_ID.',
+          );
+        }
+
+        this.logger.warn(
+          `No Stripe Connect account configured for vehicle owner; falling back to platform Stripe account for booking ${createDto.bookingId} (NODE_ENV=${nodeEnv}).`,
         );
       }
 
@@ -111,12 +273,12 @@ export class PaymentsService {
         (createDto.amount * this.commissionPercentage) / 100,
       );
 
-      // Create Stripe PaymentIntent with direct charge to owner's account
+      // Create Stripe PaymentIntent
       const paymentIntent = await this.stripeService.createPaymentIntent({
         amount: createDto.amount,
         currency: 'USD',
-        connectedAccountId: adminStripeAccountId,
-        applicationFeeAmount: commissionAmount,
+        connectedAccountId: useConnect ? adminStripeAccountId : undefined,
+        applicationFeeAmount: useConnect ? commissionAmount : undefined,
         metadata: {
           bookingId: createDto.bookingId,
           vehicleId: booking.vehicleId,
@@ -137,7 +299,7 @@ export class PaymentsService {
         status: PaymentStatus.PENDING,
         transactionId: paymentIntent.paymentIntentId,
         commissionAmount: Number(commissionAmount / 100), // Convert cents to dollars
-        stripeConnectedAccountId: adminStripeAccountId,
+        stripeConnectedAccountId: useConnect ? adminStripeAccountId : null,
       });
 
       await this.paymentRepository.save(payment);
@@ -183,15 +345,26 @@ export class PaymentsService {
 
     try {
       // Update Payment status
-      const payment = await this.paymentRepository.findOne({
+      let payment = await this.paymentRepository.findOne({
         where: { transactionId: paymentIntentId },
       });
+
+      if (!payment && bookingId) {
+        payment = await this.paymentRepository.findOne({
+          where: { bookingId },
+          order: { createdAt: 'DESC' },
+        });
+      }
 
       if (!payment) {
         this.logger.warn(
           `Payment not found for transaction ${paymentIntentId}`,
         );
         return;
+      }
+
+      if (!payment.transactionId) {
+        payment.transactionId = paymentIntentId;
       }
 
       payment.status = PaymentStatus.PAID;
@@ -202,6 +375,10 @@ export class PaymentsService {
       const booking = await this.bookingRepository.findOne({
         where: { id: bookingId },
       });
+
+      if (booking && !booking.stripePaymentId) {
+        booking.stripePaymentId = paymentIntentId;
+      }
 
       if (booking && booking.status === BookingStatus.PENDING) {
         booking.status = BookingStatus.APPROVED;

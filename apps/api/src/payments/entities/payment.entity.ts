@@ -52,17 +52,17 @@ export class Payment {
   })
   status: PaymentStatus;
 
-  @Column({ unique: true, nullable: true })
-  transactionId: string;
+  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
+  transactionId: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  paidAt: Date;
+  paidAt: Date | null;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   commissionAmount: number | null;
 
-  @Column({ nullable: true })
-  stripeConnectedAccountId: string;
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  stripeConnectedAccountId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;
