@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { InlineError } from "../../../../components/inline-error";
-import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
+import {
+  getResponseErrorMessage,
+  toUserErrorMessage,
+} from "../../../../lib/errors";
 
 type Booking = {
   id: string;
@@ -39,9 +42,14 @@ export default function AdminBookingsPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/admin/bookings/pending", { cache: "no-store" });
+      const res = await fetch("/api/admin/bookings/pending", {
+        cache: "no-store",
+      });
       if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Failed to load bookings");
+        const message = await getResponseErrorMessage(
+          res,
+          "Failed to load bookings",
+        );
         throw new Error(message);
       }
       const data = (await res.json()) as Booking[];
@@ -136,12 +144,15 @@ export default function AdminBookingsPage() {
                 <span style={{ opacity: 0.85 }}>Email: {b.guestEmail}</span>
               ) : null}
               {b.pickupLocation ? (
-                <span style={{ opacity: 0.85 }}>Pickup: {b.pickupLocation.name}</span>
+                <span style={{ opacity: 0.85 }}>
+                  Pickup: {b.pickupLocation.name}
+                </span>
               ) : null}
             </div>
 
             <div style={{ opacity: 0.85 }}>
-              {new Date(b.startDateTime).toISOString()} → {new Date(b.endDateTime).toISOString()}
+              {new Date(b.startDateTime).toISOString()} →{" "}
+              {new Date(b.endDateTime).toISOString()}
             </div>
 
             <div style={{ opacity: 0.85 }}>
@@ -152,7 +163,11 @@ export default function AdminBookingsPage() {
               <button type="button" onClick={() => approve(b.id)}>
                 Approve
               </button>
-              <button type="button" onClick={() => reject(b.id)} style={{ color: "crimson" }}>
+              <button
+                type="button"
+                onClick={() => reject(b.id)}
+                style={{ color: "crimson" }}
+              >
                 Reject
               </button>
             </div>

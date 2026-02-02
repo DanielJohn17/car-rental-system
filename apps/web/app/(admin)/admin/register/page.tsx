@@ -10,8 +10,16 @@ import { InlineError } from "../../../../components/inline-error";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
-import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../../components/ui/card";
+import {
+  getResponseErrorMessage,
+  toUserErrorMessage,
+} from "../../../../lib/errors";
 
 type RegisterBody = {
   email: string;
@@ -53,7 +61,10 @@ export default function AdminRegisterPage() {
       });
 
       if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Registration failed");
+        const message = await getResponseErrorMessage(
+          res,
+          "Registration failed",
+        );
         throw new Error(message);
       }
 
@@ -71,7 +82,9 @@ export default function AdminRegisterPage() {
       <PageContainer className="max-w-xl">
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Register as renter (admin)</CardTitle>
+            <CardTitle className="text-2xl">
+              Register as renter (admin)
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={onSubmit} className="grid gap-4">
@@ -86,7 +99,11 @@ export default function AdminRegisterPage() {
 
               <div className="grid gap-2">
                 <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Input
+                  id="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
               </div>
 
               <div className="grid gap-2">

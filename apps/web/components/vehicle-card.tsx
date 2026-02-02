@@ -1,6 +1,12 @@
 import Link from "next/link";
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
 import { Button } from "./ui/button";
 
 export type VehicleSummary = {
@@ -25,7 +31,9 @@ export function VehicleCard({ vehicle }: { vehicle: VehicleSummary }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        <div className="text-sm text-muted-foreground">${vehicle.dailyRate}/day</div>
+        <div className="text-sm text-muted-foreground">
+          ${vehicle.dailyRate}/day
+        </div>
         {vehicle.location ? (
           <div className="text-sm text-muted-foreground">
             {vehicle.location.name} — {vehicle.location.address}

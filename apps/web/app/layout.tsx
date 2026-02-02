@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ClientLayout } from "./client-layout";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -26,7 +28,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-background font-sans text-foreground`}
       >
-        {children}
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

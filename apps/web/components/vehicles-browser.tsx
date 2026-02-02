@@ -60,7 +60,9 @@ export async function VehiclesBrowser({
 
   try {
     const [locations, v] = await Promise.all([
-      apiFetch<LocationListResponse | Location[]>("/locations?limit=100&offset=0"),
+      apiFetch<LocationListResponse | Location[]>(
+        "/locations?limit=100&offset=0",
+      ),
       (async () => {
         const query = new URLSearchParams();
         if (make) query.set("make", make);
@@ -77,7 +79,7 @@ export async function VehiclesBrowser({
       })(),
     ]);
 
-    locationsList = Array.isArray(locations) ? locations : locations.data;
+    locationsList = Array.isArray(locations) ? locations : locations?.data;
     vehicles = v;
   } catch (e: unknown) {
     errorMessage = toUserErrorMessage(e, "Failed to load vehicles");
@@ -94,18 +96,28 @@ export async function VehiclesBrowser({
       <PageContainer>
         <div className="mb-6">
           <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-          {subtitle ? <p className="mt-2 text-muted-foreground">{subtitle}</p> : null}
+          {subtitle ? (
+            <p className="mt-2 text-muted-foreground">{subtitle}</p>
+          ) : null}
         </div>
 
         <InlineError message={errorMessage} className="mb-4" />
 
         <VehicleFilters
           action={action}
-          defaultValues={{ make, model, locationId, minDailyRate, maxDailyRate }}
+          defaultValues={{
+            make,
+            model,
+            locationId,
+            minDailyRate,
+            maxDailyRate,
+          }}
           locations={locationOptions}
         />
 
-        <div className="mt-6 text-sm text-muted-foreground">Total: {vehicles.total}</div>
+        <div className="mt-6 text-sm text-muted-foreground">
+          Total: {vehicles.total}
+        </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {vehicles.data.map((v) => (
@@ -114,7 +126,9 @@ export async function VehiclesBrowser({
         </div>
 
         {vehicles.data.length === 0 ? (
-          <div className="mt-6 text-sm text-muted-foreground">No vehicles found.</div>
+          <div className="mt-6 text-sm text-muted-foreground">
+            No vehicles found.
+          </div>
         ) : null}
       </PageContainer>
     </div>

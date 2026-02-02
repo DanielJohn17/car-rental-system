@@ -31,7 +31,7 @@ export function FormSelect({
   placeholder = "Select option",
 }: FormSelectProps) {
   const isInvalid = required && !value;
-  
+
   return (
     <div className={`grid gap-2 ${className}`}>
       <Label htmlFor={id}>
@@ -44,10 +44,15 @@ export function FormSelect({
         <SelectContent>
           {options.map((option) => {
             // Handle both string and object options
-            const isObject = typeof option === 'object' && option !== null && 'id' in option;
-            const optionKey = isObject ? (option as { id: string; name: string }).id : option;
-            const optionText = isObject ? (option as { id: string; name: string }).name : option;
-            
+            const isObject =
+              typeof option === "object" && option !== null && "id" in option;
+            const optionKey = isObject
+              ? (option as { id: string; name: string }).id
+              : option;
+            const optionText = isObject
+              ? (option as { id: string; name: string }).name
+              : option;
+
             return (
               <SelectItem key={String(optionKey)} value={String(optionKey)}>
                 {String(optionText)}

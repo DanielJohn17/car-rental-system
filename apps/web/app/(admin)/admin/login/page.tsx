@@ -10,8 +10,16 @@ import { InlineError } from "../../../../components/inline-error";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
-import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../../components/ui/card";
+import {
+  getResponseErrorMessage,
+  toUserErrorMessage,
+} from "../../../../lib/errors";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -36,7 +44,10 @@ export default function AdminLoginPage() {
       });
 
       if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Invalid email or password");
+        const message = await getResponseErrorMessage(
+          res,
+          "Invalid email or password",
+        );
         throw new Error(message);
       }
 
@@ -85,7 +96,8 @@ export default function AdminLoginPage() {
               <InlineError message={error} />
 
               <div className="text-sm text-muted-foreground">
-                Need an admin (renter) account? <Link href="/admin/register">Register</Link>
+                Need an admin (renter) account?{" "}
+                <Link href="/admin/register">Register</Link>
               </div>
             </form>
           </CardContent>

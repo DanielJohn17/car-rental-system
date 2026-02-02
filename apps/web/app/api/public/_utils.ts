@@ -50,18 +50,18 @@ export async function proxyPublic(request: Request, apiPath: string) {
     return new NextResponse(text, { status: res.status });
   } catch (error) {
     console.error("Proxy public fetch failed:", error);
-    
+
     // Return appropriate fallback based on the endpoint
     if (apiPath.includes("/locations")) {
       return NextResponse.json(
         { error: "Service temporarily unavailable", locations: [] },
-        { status: 503 }
+        { status: 503 },
       );
     }
-    
+
     return NextResponse.json(
       { error: "Service temporarily unavailable" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 }

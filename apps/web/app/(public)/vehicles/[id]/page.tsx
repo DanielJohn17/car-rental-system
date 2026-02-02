@@ -3,7 +3,12 @@ import { apiFetch } from "../../../../lib/api";
 import { PageContainer } from "../../../../components/page-container";
 import { SiteHeader } from "../../../../components/site-header";
 import { Button } from "../../../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../../components/ui/card";
 
 type Vehicle = {
   id: string;
@@ -32,6 +37,26 @@ export default async function VehicleDetailPage({
   const { id } = await params;
   const vehicle = await apiFetch<Vehicle>(`/vehicles/${id}`);
 
+  // Handle case where vehicle is not found
+  if (!vehicle) {
+    return (
+      <div>
+        <SiteHeader />
+        <PageContainer>
+          <div className="text-center py-8">
+            <h1 className="text-2xl font-semibold mb-2">Vehicle not found</h1>
+            <p className="text-muted-foreground mb-4">
+              The vehicle you're looking for doesn't exist or has been removed.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/vehicles">← Back to vehicles</Link>
+            </Button>
+          </div>
+        </PageContainer>
+      </div>
+    );
+  }
+
   return (
     <div>
       <SiteHeader />
@@ -45,43 +70,51 @@ export default async function VehicleDetailPage({
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">
-              {vehicle.make} {vehicle.model} ({vehicle.year})
+              {vehicle?.make} {vehicle?.model} ({vehicle?.year})
             </CardTitle>
             <div className="text-sm text-muted-foreground">
-              ${vehicle.dailyRate}/day
-              {vehicle.location ? ` • ${vehicle.location.name}` : ""}
+              ${vehicle?.dailyRate}/day
+              {vehicle?.location ? ` • ${vehicle.location.name}` : ""}
             </div>
           </CardHeader>
 
           <CardContent className="space-y-2">
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="text-sm">
-                <span className="text-muted-foreground">Fuel:</span> {vehicle.fuelType}
+                <span className="text-muted-foreground">Fuel:</span>{" "}
+                {vehicle?.fuelType}
               </div>
               <div className="text-sm">
-                <span className="text-muted-foreground">Transmission:</span> {vehicle.transmission}
+                <span className="text-muted-foreground">Transmission:</span>{" "}
+                {vehicle?.transmission}
               </div>
               <div className="text-sm">
-                <span className="text-muted-foreground">Seats:</span> {vehicle.seats}
+                <span className="text-muted-foreground">Seats:</span>{" "}
+                {vehicle?.seats}
               </div>
               <div className="text-sm">
-                <span className="text-muted-foreground">Mileage:</span> {vehicle.mileage}
+                <span className="text-muted-foreground">Mileage:</span>{" "}
+                {vehicle?.mileage}
               </div>
-              {vehicle.color ? (
+              {vehicle?.color ? (
                 <div className="text-sm">
-                  <span className="text-muted-foreground">Color:</span> {vehicle.color}
+                  <span className="text-muted-foreground">Color:</span>{" "}
+                  {vehicle.color}
                 </div>
               ) : null}
-              {vehicle.location ? (
+              {vehicle?.location ? (
                 <div className="text-sm sm:col-span-2">
-                  <span className="text-muted-foreground">Location:</span> {vehicle.location.name} — {vehicle.location.address}
+                  <span className="text-muted-foreground">Location:</span>{" "}
+                  {vehicle.location.name} — {vehicle.location.address}
                 </div>
               ) : null}
             </div>
 
             <div className="pt-2">
               <Button asChild>
-                <Link href={`/bookings/new?vehicleId=${vehicle.id}`}>Request booking</Link>
+                <Link href={`/bookings/new?vehicleId=${vehicle?.id}`}>
+                  Request booking
+                </Link>
               </Button>
             </div>
           </CardContent>

@@ -59,18 +59,18 @@ export async function proxyToApi(request: Request, apiPath: string) {
     return new NextResponse(text, { status: res.status });
   } catch (error) {
     console.error("Proxy admin fetch failed:", error);
-    
+
     // Return appropriate fallback based on the endpoint
     if (apiPath.includes("/vehicles")) {
       return NextResponse.json(
         { error: "Service temporarily unavailable", vehicles: [] },
-        { status: 503 }
+        { status: 503 },
       );
     }
-    
+
     return NextResponse.json(
       { error: "Service temporarily unavailable" },
-      { status: 503 }
+      { status: 503 },
     );
   }
 }

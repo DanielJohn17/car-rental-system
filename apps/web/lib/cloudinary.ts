@@ -37,11 +37,14 @@ export interface CloudinaryUploadResult {
 
 export async function uploadToCloudinary(
   file: File,
-  options: CloudinaryUploadOptions = {}
+  options: CloudinaryUploadOptions = {},
 ): Promise<CloudinaryUploadResult> {
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "unsigned");
+  formData.append(
+    "upload_preset",
+    process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "unsigned",
+  );
 
   if (options.folder) {
     formData.append("folder", options.folder);
@@ -56,13 +59,20 @@ export async function uploadToCloudinary(
   }
 
   if (options.context) {
-    formData.append("context", Object.entries(options.context).map(([key, value]) => `${key}=${value}`).join("|"));
+    formData.append(
+      "context",
+      Object.entries(options.context)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("|"),
+    );
   }
 
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo";
   if (!cloudName || cloudName === "demo") {
     // For demo purposes, we'll simulate the upload
-    console.warn("Using demo Cloudinary configuration. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME for production.");
+    console.warn(
+      "Using demo Cloudinary configuration. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME for production.",
+    );
     return {
       publicId: `demo_${Date.now()}`,
       secureUrl: URL.createObjectURL(file),
@@ -77,10 +87,13 @@ export async function uploadToCloudinary(
     };
   }
 
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-    method: "POST",
-    body: formData,
-  });
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
 
   if (!response.ok) {
     throw new Error(`Upload failed: ${response.statusText}`);
@@ -98,22 +111,31 @@ export function getOptimizedImageUrl(
     crop?: string;
     quality?: string;
     format?: string;
-  } = {}
+  } = {},
 ): string {
-  const { width, height, crop = "fill", quality = "auto", format = "auto" } = options;
-  
-  return cld.image(publicId)
-    .resize(fill().width(width || 400).height(height || 300))
+  const {
+    width,
+    height,
+    crop = "fill",
+    quality = "auto",
+    format = "auto",
+  } = options;
+
+  return cld
+    .image(publicId)
+    .resize(
+      fill()
+        .width(width || 400)
+        .height(height || 300),
+    )
     .format(format)
     .quality(quality)
     .toURL();
 }
 
-export function getThumbnailUrl(
-  publicId: string,
-  size: number = 150
-): string {
-  return cld.image(publicId)
+export function getThumbnailUrl(publicId: string, size: number = 150): string {
+  return cld
+    .image(publicId)
     .resize(fill().width(size).height(size))
     .format("auto")
     .quality("auto")

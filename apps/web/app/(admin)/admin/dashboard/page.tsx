@@ -4,7 +4,12 @@ import { redirect } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
 import { PageContainer } from "../../../../components/page-container";
 import { Button } from "../../../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../../components/ui/card";
 
 type DashboardOverview = {
   pendingBookings: number;
@@ -20,7 +25,7 @@ export default async function AdminDashboardPage() {
   }
 
   let overview: DashboardOverview;
-  
+
   try {
     overview = await apiFetch<DashboardOverview>("/dashboard/overview", {
       headers: {
@@ -29,7 +34,7 @@ export default async function AdminDashboardPage() {
     });
   } catch (error) {
     console.error("Failed to fetch dashboard data:", error);
-    
+
     // Provide fallback data when backend is unavailable
     overview = {
       pendingBookings: 0,
@@ -38,8 +43,8 @@ export default async function AdminDashboardPage() {
       fleetStatus: {
         available: 0,
         maintenance: 0,
-        rented: 0
-      }
+        rented: 0,
+      },
     };
   }
 
@@ -105,7 +110,9 @@ export default async function AdminDashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Bookings</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Bookings
+            </CardTitle>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -121,7 +128,9 @@ export default async function AdminDashboardPage() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">+{overview.pendingBookings}</div>
+            <div className="text-2xl font-bold">
+              +{overview.pendingBookings}
+            </div>
             <p className="text-xs text-muted-foreground">
               Bookings awaiting approval
             </p>
@@ -146,7 +155,9 @@ export default async function AdminDashboardPage() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overview.fleetStatus?.available || 0} Available</div>
+            <div className="text-2xl font-bold">
+              {overview.fleetStatus?.available || 0} Available
+            </div>
             <p className="text-xs text-muted-foreground">
               {overview.fleetStatus?.maintenance || 0} in maintenance
             </p>

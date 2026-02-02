@@ -14,7 +14,8 @@ export default async function ConfirmationPage({
         Reference: <strong>{ref}</strong>
       </p>
       <p style={{ opacity: 0.85, marginBottom: 16 }}>
-        If you completed the Stripe deposit payment, your booking will be processed by the sales team.
+        If you completed the Stripe deposit payment, your booking will be
+        processed by the sales team.
       </p>
       <Link href="/vehicles">Back to vehicles</Link>
     </main>

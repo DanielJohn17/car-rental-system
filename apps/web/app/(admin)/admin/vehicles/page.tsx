@@ -28,51 +28,23 @@ import {
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
 import { CloudinaryImageUpload } from "../../../../components/cloudinary-image-upload";
-import { 
-  VehicleCardSkeleton, 
-  VehicleFormSkeleton, 
+import {
+  VehicleCardSkeleton,
+  VehicleFormSkeleton,
   VehiclesListSkeleton,
-  LoadingSkeleton 
+  LoadingSkeleton,
 } from "../../../../components/loading-skeleton";
-import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
 import { FormField } from "../../../../components/form-field";
 import { FormSelect } from "../../../../components/form-select";
 import { AdminVehicleCard } from "../../../../components/admin-vehicle-card";
-
-type Location = {
-  id: string;
-  name: string;
-  address: string;
-};
-
-type LocationListResponse = {
-  data: Location[];
-  total: number;
-};
-
-type Vehicle = {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  licensePlate: string;
-  vin: string;
-  color?: string | null;
-  fuelType: string;
-  transmission: string;
-  seats: number;
-  dailyRate: number;
-  hourlyRate?: number | null;
-  locationId: string;
-  status: string;
-  mileage: number;
-  createdAt: string;
-};
-
-type VehicleListResponse = {
-  data: Vehicle[];
-  total: number;
-};
+import {
+  useVehicles,
+  useCreateVehicle,
+  useUpdateVehicleStatus,
+  useDeleteVehicle,
+  type Vehicle,
+} from "../../../../lib/queries/vehicles";
+import { useLocations, type Location } from "../../../../lib/queries/locations";
 
 const VEHICLE_STATUSES = [
   "AVAILABLE",
@@ -86,123 +58,87 @@ const FUEL_TYPES = ["PETROL", "DIESEL", "ELECTRIC", "HYBRID"] as const;
 const TRANSMISSIONS = ["MANUAL", "AUTO"] as const;
 
 export default function AdminVehiclesPage() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [total, setTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  // TanStack Query hooks
+  const {
+    data: vehiclesData,
+    isLoading: vehiclesLoading,
+    error: vehiclesError,
+  } = useVehicles({ limit: 50, offset: 0 });
+  const { data: locationsData, isLoading: locationsLoading } = useLocations({
+    limit: 100,
+    offset: 0,
+  });
+  const createVehicleMutation = useCreateVehicle();
+  const updateVehicleStatusMutation = useUpdateVehicleStatus();
+  const deleteVehicleMutation = useDeleteVehicle();
 
-  const [locations, setLocations] = useState<Location[]>([]);
-
+  // Form state
   const [make, setMake] = useState("");
   const [model, setModel] = useState("");
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [licensePlate, setLicensePlate] = useState("");
   const [vin, setVin] = useState("");
   const [color, setColor] = useState("");
-  const [fuelType, setFuelType] = useState<(typeof FUEL_TYPES)[number]>(
-    "PETROL",
-  );
-  const [transmission, setTransmission] = useState<
-    (typeof TRANSMISSIONS)[number]
-  >("AUTO");
+  const [fuelType, setFuelType] =
+    useState<(typeof FUEL_TYPES)[number]>("PETROL");
+  const [transmission, setTransmission] =
+    useState<(typeof TRANSMISSIONS)[number]>("AUTO");
   const [seats, setSeats] = useState("5");
   const [dailyRate, setDailyRate] = useState("0");
   const [hourlyRate, setHourlyRate] = useState("");
   const [locationId, setLocationId] = useState("");
   const [mileage, setMileage] = useState("0");
 
+  // Extract data from responses
+  const vehicles = vehiclesData?.data || [];
+  const total = vehiclesData?.total || 0;
+  const locations = Array.isArray(locationsData)
+    ? locationsData
+    : locationsData?.data || [];
+
+  // Set default location when locations load
+  useEffect(() => {
+    if (locations?.length > 0 && !locationId && locations[0]) {
+      setLocationId(locations[0].id);
+    }
+  }, [locations, locationId]);
+
   const canCreate = useMemo(() => {
     return Boolean(
       make &&
-        model &&
-        year &&
-        licensePlate &&
-        vin &&
-        seats &&
-        dailyRate &&
-        locationId,
+      model &&
+      year &&
+      licensePlate &&
+      vin &&
+      seats &&
+      dailyRate &&
+      locationId,
     );
   }, [make, model, year, licensePlate, vin, seats, dailyRate, locationId]);
 
-  async function load() {
-    setError(null);
-    setLoading(true);
+  // Handle form submission
+  const handleCreateVehicle = async () => {
+    if (!canCreate) return;
 
     try {
-      const res = await fetch("/api/admin/vehicles?limit=50&offset=0", {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Failed to load vehicles");
-        throw new Error(message);
-      }
-
-      const data = (await res.json()) as VehicleListResponse;
-      setVehicles(data.data);
-      setTotal(data.total);
-    } catch (e: unknown) {
-      setError(toUserErrorMessage(e, "Failed to load vehicles"));
-    } finally {
-      setLoading(false);
-      setInitialLoading(false);
-    }
-  }
-
-  async function loadLocations() {
-    try {
-      const res = await fetch("/api/public/locations?limit=100&offset=0", {
-        cache: "no-store",
-      });
-      if (!res.ok) return;
-      const raw = (await res.json()) as LocationListResponse | Location[];
-      const data = Array.isArray(raw) ? raw : raw.data;
-      setLocations(data);
-      const first = data[0];
-      if (first) {
-        setLocationId(first.id);
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  useEffect(() => {
-    void load();
-    void loadLocations();
-  }, []);
-
-  async function createVehicle() {
-    setError(null);
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/admin/vehicles", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          make,
-          model,
-          year: Number(year),
-          licensePlate,
-          vin,
-          color: color || undefined,
-          fuelType,
-          transmission,
-          seats: Number(seats),
-          dailyRate: Number(dailyRate),
-          hourlyRate: hourlyRate ? Number(hourlyRate) : undefined,
-          locationId,
-          mileage: mileage ? Number(mileage) : undefined,
-          images: [],
-        }),
+      await createVehicleMutation.mutateAsync({
+        make,
+        model,
+        year: Number(year),
+        licensePlate,
+        vin,
+        color: color || undefined,
+        fuelType,
+        transmission,
+        seats: Number(seats),
+        dailyRate: Number(dailyRate),
+        hourlyRate: hourlyRate ? Number(hourlyRate) : undefined,
+        locationId,
+        mileage: mileage ? Number(mileage) : undefined,
+        images: [],
       });
 
-      if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Create failed");
-        throw new Error(message);
-      }
-
+      // Reset form on success
       setMake("");
       setModel("");
       setLicensePlate("");
@@ -211,46 +147,31 @@ export default function AdminVehiclesPage() {
       setDailyRate("0");
       setHourlyRate("");
       setMileage("0");
-
-      await load();
-    } catch (e: unknown) {
-      setError(toUserErrorMessage(e, "Create failed"));
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error("Failed to create vehicle:", error);
     }
-  }
+  };
 
-  async function updateStatus(id: string, status: string) {
-    setError(null);
+  // Handle status updates
+  const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      const res = await fetch(`/api/admin/vehicles/${id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+      await updateVehicleStatusMutation.mutateAsync({
+        id,
+        data: { status },
       });
-      if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Status update failed");
-        throw new Error(message);
-      }
-      await load();
-    } catch (e: unknown) {
-      setError(toUserErrorMessage(e, "Status update failed"));
+    } catch (error) {
+      console.error("Failed to update vehicle status:", error);
     }
-  }
+  };
 
-  async function deleteVehicle(id: string) {
-    setError(null);
+  // Handle vehicle deletion
+  const handleDeleteVehicle = async (id: string) => {
     try {
-      const res = await fetch(`/api/admin/vehicles/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Delete failed");
-        throw new Error(message);
-      }
-      await load();
-    } catch (e: unknown) {
-      setError(toUserErrorMessage(e, "Delete failed"));
+      await deleteVehicleMutation.mutateAsync(id);
+    } catch (error) {
+      console.error("Failed to delete vehicle:", error);
     }
-  }
+  };
 
   return (
     <PageContainer>
@@ -270,7 +191,7 @@ export default function AdminVehiclesPage() {
           <CardTitle>Create vehicle</CardTitle>
         </CardHeader>
         <CardContent>
-          {initialLoading ? (
+          {vehiclesLoading ? (
             <VehicleFormSkeleton />
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -383,7 +304,8 @@ export default function AdminVehiclesPage() {
                 onChange={(e) => setMileage(e.target.value)}
                 required
               />
-          </div>)}
+            </div>
+          )}
 
           <div className="mt-6">
             <h3 className="text-lg font-medium mb-4">Vehicle Images</h3>
@@ -398,7 +320,6 @@ export default function AdminVehiclesPage() {
               }}
               onUploadError={(error) => {
                 console.error("Upload failed:", error);
-                setError(`Image upload failed: ${error}`);
               }}
               className="mb-4"
             />
@@ -407,22 +328,32 @@ export default function AdminVehiclesPage() {
           <div className="mt-6 flex gap-2">
             <Button
               type="button"
-              onClick={createVehicle}
-              disabled={!canCreate || loading}
+              onClick={handleCreateVehicle}
+              disabled={!canCreate || createVehicleMutation.isPending}
             >
-              Create Vehicle
+              {createVehicleMutation.isPending
+                ? "Creating..."
+                : "Create Vehicle"}
             </Button>
             <Button
               type="button"
               variant="outline"
-              onClick={load}
-              disabled={loading}
+              onClick={() => window.location.reload()}
+              disabled={createVehicleMutation.isPending}
             >
               Refresh
             </Button>
           </div>
 
-          <InlineError message={error} className="mt-4" />
+          <InlineError
+            message={
+              vehiclesError?.message ||
+              createVehicleMutation.error?.message ||
+              updateVehicleStatusMutation.error?.message ||
+              deleteVehicleMutation.error?.message
+            }
+            className="mt-4"
+          />
         </CardContent>
       </Card>
 
@@ -432,19 +363,19 @@ export default function AdminVehiclesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {loading && vehicles.length === 0 ? (
+            {vehiclesLoading && vehicles.length === 0 ? (
               <VehiclesListSkeleton />
             ) : vehicles.length > 0 ? (
               vehicles.map((v) => (
                 <AdminVehicleCard
                   key={v.id}
                   vehicle={v}
-                  onStatusUpdate={updateStatus}
-                  onDelete={deleteVehicle}
+                  onStatusUpdate={handleUpdateStatus}
+                  onDelete={handleDeleteVehicle}
                   vehicleStatuses={VEHICLE_STATUSES}
                 />
               ))
-            ) : !loading && vehicles.length === 0 && !initialLoading ? (
+            ) : !vehiclesLoading && vehicles.length === 0 ? (
               <div className="text-center text-muted-foreground py-8">
                 No vehicles found.
               </div>

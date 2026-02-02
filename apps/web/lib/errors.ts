@@ -6,7 +6,10 @@ export function extractMessage(payload: unknown): string | null {
     if (!trimmed) return null;
 
     // Try JSON parse for cases where servers send JSON as text
-    if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+    if (
+      (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+      (trimmed.startsWith("[") && trimmed.endsWith("]"))
+    ) {
       try {
         const parsed = JSON.parse(trimmed) as unknown;
         return extractMessage(parsed) ?? trimmed;

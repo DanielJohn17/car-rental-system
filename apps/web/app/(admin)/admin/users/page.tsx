@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { InlineError } from "../../../../components/inline-error";
-import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
+import {
+  getResponseErrorMessage,
+  toUserErrorMessage,
+} from "../../../../lib/errors";
 
 type Staff = {
   id: string;
@@ -42,9 +45,14 @@ export default function AdminUsersPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/admin/users?page=1&limit=50", { cache: "no-store" });
+      const res = await fetch("/api/admin/users?page=1&limit=50", {
+        cache: "no-store",
+      });
       if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Failed to load users");
+        const message = await getResponseErrorMessage(
+          res,
+          "Failed to load users",
+        );
         throw new Error(message);
       }
       const data = (await res.json()) as StaffListResponse;
@@ -165,7 +173,11 @@ export default function AdminUsersPage() {
         </div>
 
         <div style={{ marginTop: 12, display: "flex", gap: 12 }}>
-          <button type="button" onClick={createUser} disabled={!canCreate || loading}>
+          <button
+            type="button"
+            onClick={createUser}
+            disabled={!canCreate || loading}
+          >
             Create
           </button>
           <button type="button" onClick={load} disabled={loading}>
@@ -205,7 +217,9 @@ export default function AdminUsersPage() {
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <span style={{ opacity: 0.85 }}>Email: {u.email}</span>
                 <span style={{ opacity: 0.85 }}>Phone: {u.phone}</span>
-                <span style={{ opacity: 0.85 }}>Verified: {String(u.verified)}</span>
+                <span style={{ opacity: 0.85 }}>
+                  Verified: {String(u.verified)}
+                </span>
               </div>
 
               <div>

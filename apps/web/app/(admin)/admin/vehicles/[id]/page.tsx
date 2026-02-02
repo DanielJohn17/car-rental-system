@@ -30,34 +30,20 @@ import {
 import { Input } from "../../../../../components/ui/input";
 import { Label } from "../../../../../components/ui/label";
 import { CloudinaryImageUpload } from "../../../../../components/cloudinary-image-upload";
-import { 
+import {
   VehicleFormSkeleton,
-  LoadingSkeleton 
+  LoadingSkeleton,
 } from "../../../../../components/loading-skeleton";
-import { getResponseErrorMessage, toUserErrorMessage } from "../../../../../lib/errors";
-
-type Location = {
-  id: string;
-  name: string;
-  address: string;
-};
-
-type Vehicle = {
-  id: string;
-  make: string;
-  model: string;
-  year: number;
-  licensePlate: string;
-  vin: string;
-  color?: string | null;
-  fuelType: string;
-  transmission: string;
-  seats: number;
-  dailyRate: number;
-  hourlyRate?: number | null;
-  locationId: string;
-  mileage: number;
-};
+import {
+  useVehicle,
+  useUpdateVehicle,
+  useDeleteVehicle,
+  type Vehicle,
+} from "../../../../../lib/queries/vehicles";
+import {
+  useLocations,
+  type Location,
+} from "../../../../../lib/queries/locations";
 
 const FUEL_TYPES = ["PETROL", "DIESEL", "ELECTRIC", "HYBRID"] as const;
 const TRANSMISSIONS = ["MANUAL", "AUTO"] as const;
@@ -67,102 +53,87 @@ export default function AdminVehicleEditPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [locations, setLocations] = useState<Location[]>([]);
+  // TanStack Query hooks
+  const {
+    data: vehicleData,
+    isLoading: vehicleLoading,
+    error: vehicleError,
+  } = useVehicle(id);
+  const { data: locationsData, isLoading: locationsLoading } = useLocations({
+    limit: 100,
+    offset: 0,
+  });
+  const updateVehicleMutation = useUpdateVehicle();
+  const deleteVehicleMutation = useDeleteVehicle();
+
+  // Local state for form editing
+  const [localVehicle, setLocalVehicle] = useState<Vehicle | null>(null);
+
+  // Extract data from responses
+  const vehicle = vehicleData;
+  const locations = Array.isArray(locationsData)
+    ? locationsData
+    : locationsData?.data || [];
+
+  // Initialize local vehicle state when data loads
+  useEffect(() => {
+    if (vehicle && !localVehicle) {
+      setLocalVehicle(vehicle);
+    }
+  }, [vehicle, localVehicle]);
 
   const canSave = useMemo(() => {
-    return Boolean(vehicle?.make && vehicle?.model && vehicle?.year);
-  }, [vehicle]);
+    return Boolean(
+      localVehicle?.make && localVehicle?.model && localVehicle?.year,
+    );
+  }, [localVehicle]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setError(null);
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/admin/vehicles/${id}`, { cache: "no-store" });
-        if (!res.ok) {
-          const message = await getResponseErrorMessage(res, "Failed to load vehicle");
-          throw new Error(message);
-        }
-        const data = (await res.json()) as Vehicle;
-        if (!cancelled) setVehicle(data);
-      } catch (e: unknown) {
-        if (!cancelled)
-          setError(toUserErrorMessage(e, "Failed to load vehicle"));
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-          setInitialLoading(false);
-        }
-      }
-    }
-
-    async function loadLocations() {
-      try {
-        const res = await fetch("/api/public/locations?limit=100&offset=0", {
-          cache: "no-store",
-        });
-        if (!res.ok) return;
-        const raw = (await res.json()) as Location[] | any;
-        const data = Array.isArray(raw) ? raw : raw.data;
-        if (!cancelled) setLocations(data);
-      } catch {
-        // ignore
-      }
-    }
-
-    void load();
-    void loadLocations();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  async function save() {
-    if (!vehicle) return;
-    setError(null);
-    setLoading(true);
+  // Handle save action
+  const handleSave = async () => {
+    if (!localVehicle || !id) return;
 
     try {
-      const res = await fetch(`/api/admin/vehicles/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          make: vehicle.make,
-          model: vehicle.model,
-          year: Number(vehicle.year),
-          licensePlate: vehicle.licensePlate,
-          vin: vehicle.vin,
-          color: vehicle.color || undefined,
-          fuelType: vehicle.fuelType,
-          transmission: vehicle.transmission,
-          seats: Number(vehicle.seats),
-          dailyRate: Number(vehicle.dailyRate),
-          hourlyRate: vehicle.hourlyRate ? Number(vehicle.hourlyRate) : undefined,
-          locationId: vehicle.locationId,
-          mileage: Number(vehicle.mileage),
+      await updateVehicleMutation.mutateAsync({
+        id,
+        data: {
+          make: localVehicle.make,
+          model: localVehicle.model,
+          year: Number(localVehicle.year),
+          licensePlate: localVehicle.licensePlate,
+          vin: localVehicle.vin,
+          color: localVehicle.color || undefined,
+          fuelType: localVehicle.fuelType,
+          transmission: localVehicle.transmission,
+          seats: Number(localVehicle.seats),
+          dailyRate: Number(localVehicle.dailyRate),
+          hourlyRate: localVehicle.hourlyRate
+            ? Number(localVehicle.hourlyRate)
+            : undefined,
+          locationId: localVehicle.locationId,
+          mileage: Number(localVehicle.mileage),
           images: [],
-        }),
+        },
       });
 
-      if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Save failed");
-        throw new Error(message);
-      }
-
       router.push("/admin/vehicles");
-    } catch (e: unknown) {
-      setError(toUserErrorMessage(e, "Save failed"));
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error("Failed to update vehicle:", error);
     }
-  }
+  };
+
+  // Handle delete action
+  const handleDelete = async () => {
+    if (!id) return;
+
+    if (confirm("Are you sure you want to delete this vehicle?")) {
+      try {
+        await deleteVehicleMutation.mutateAsync(id);
+        router.push("/admin/vehicles");
+      } catch (error) {
+        console.error("Failed to delete vehicle:", error);
+      }
+    }
+  };
 
   return (
     <PageContainer>
@@ -176,20 +147,21 @@ export default function AdminVehicleEditPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => save()} disabled={!canSave || loading}>
+              <DropdownMenuItem
+                onClick={handleSave}
+                disabled={!canSave || updateVehicleMutation.isPending}
+              >
                 Save Changes
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.back()} disabled={loading}>
+              <DropdownMenuItem
+                onClick={() => router.back()}
+                disabled={updateVehicleMutation.isPending}
+              >
                 Cancel
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={() => {
-                  if (confirm("Are you sure you want to delete this vehicle?")) {
-                    // Handle delete action
-                    console.log("Delete vehicle", id);
-                  }
-                }}
+              <DropdownMenuItem
+                onClick={handleDelete}
                 className="text-destructive"
               >
                 Delete Vehicle
@@ -202,70 +174,88 @@ export default function AdminVehicleEditPage() {
         </div>
       </div>
 
-      {initialLoading ? (
+      {vehicleLoading ? (
         <VehicleFormSkeleton />
-      ) : vehicle ? (
+      ) : localVehicle ? (
         <Card>
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div className="grid gap-2">
-                <Label htmlFor="make">Make <span className="text-destructive">*</span></Label>
+                <Label htmlFor="make">
+                  Make <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="make"
-                  value={vehicle.make}
+                  value={localVehicle.make}
                   onChange={(e) =>
-                    setVehicle({ ...vehicle, make: e.target.value })
+                    setLocalVehicle({ ...localVehicle, make: e.target.value })
                   }
-                  className={!vehicle.make ? "border-destructive" : ""}
+                  className={!localVehicle.make ? "border-destructive" : ""}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="model">Model <span className="text-destructive">*</span></Label>
+                <Label htmlFor="model">
+                  Model <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="model"
-                  value={vehicle.model}
+                  value={localVehicle.model}
                   onChange={(e) =>
-                    setVehicle({ ...vehicle, model: e.target.value })
+                    setLocalVehicle({ ...localVehicle, model: e.target.value })
                   }
-                  className={!vehicle.model ? "border-destructive" : ""}
+                  className={!localVehicle.model ? "border-destructive" : ""}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="year">Year <span className="text-destructive">*</span></Label>
+                <Label htmlFor="year">
+                  Year <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="year"
                   type="number"
-                  value={String(vehicle.year)}
+                  value={String(localVehicle.year)}
                   onChange={(e) =>
-                    setVehicle({ ...vehicle, year: Number(e.target.value) })
+                    setLocalVehicle({
+                      ...localVehicle,
+                      year: Number(e.target.value),
+                    })
                   }
-                  className={!vehicle.year ? "border-destructive" : ""}
+                  className={!localVehicle.year ? "border-destructive" : ""}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="licensePlate">License plate <span className="text-destructive">*</span></Label>
+                <Label htmlFor="licensePlate">
+                  License plate <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="licensePlate"
-                  value={vehicle.licensePlate}
+                  value={localVehicle.licensePlate}
                   onChange={(e) =>
-                    setVehicle({ ...vehicle, licensePlate: e.target.value })
+                    setLocalVehicle({
+                      ...localVehicle,
+                      licensePlate: e.target.value,
+                    })
                   }
-                  className={!vehicle.licensePlate ? "border-destructive" : ""}
+                  className={
+                    !localVehicle.licensePlate ? "border-destructive" : ""
+                  }
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="vin">VIN <span className="text-destructive">*</span></Label>
+                <Label htmlFor="vin">
+                  VIN <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="vin"
-                  value={vehicle.vin}
+                  value={localVehicle.vin}
                   onChange={(e) =>
-                    setVehicle({ ...vehicle, vin: e.target.value })
+                    setLocalVehicle({ ...localVehicle, vin: e.target.value })
                   }
-                  className={!vehicle.vin ? "border-destructive" : ""}
+                  className={!localVehicle.vin ? "border-destructive" : ""}
                 />
               </div>
 
@@ -273,9 +263,9 @@ export default function AdminVehicleEditPage() {
                 <Label htmlFor="color">Color</Label>
                 <Input
                   id="color"
-                  value={vehicle.color ?? ""}
+                  value={localVehicle.color ?? ""}
                   onChange={(e) =>
-                    setVehicle({ ...vehicle, color: e.target.value })
+                    setLocalVehicle({ ...localVehicle, color: e.target.value })
                   }
                 />
               </div>
@@ -283,10 +273,10 @@ export default function AdminVehicleEditPage() {
               <div className="grid gap-2">
                 <Label>Fuel type</Label>
                 <Select
-                  value={vehicle.fuelType}
+                  value={localVehicle.fuelType}
                   onValueChange={(value: string) =>
-                    setVehicle({
-                      ...vehicle,
+                    setLocalVehicle({
+                      ...localVehicle,
                       fuelType: value as (typeof FUEL_TYPES)[number],
                     })
                   }
@@ -307,10 +297,10 @@ export default function AdminVehicleEditPage() {
               <div className="grid gap-2">
                 <Label>Transmission</Label>
                 <Select
-                  value={vehicle.transmission}
+                  value={localVehicle.transmission}
                   onValueChange={(value: string) =>
-                    setVehicle({
-                      ...vehicle,
+                    setLocalVehicle({
+                      ...localVehicle,
                       transmission: value as (typeof TRANSMISSIONS)[number],
                     })
                   }
@@ -329,28 +319,40 @@ export default function AdminVehicleEditPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="seats">Seats <span className="text-destructive">*</span></Label>
+                <Label htmlFor="seats">
+                  Seats <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="seats"
                   type="number"
-                  value={String(vehicle.seats)}
+                  value={String(localVehicle.seats)}
                   onChange={(e) =>
-                    setVehicle({ ...vehicle, seats: Number(e.target.value) })
+                    setLocalVehicle({
+                      ...localVehicle,
+                      seats: Number(e.target.value),
+                    })
                   }
-                  className={!vehicle.seats ? "border-destructive" : ""}
+                  className={!localVehicle.seats ? "border-destructive" : ""}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="dailyRate">Daily rate <span className="text-destructive">*</span></Label>
+                <Label htmlFor="dailyRate">
+                  Daily rate <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="dailyRate"
                   type="number"
-                  value={String(vehicle.dailyRate)}
+                  value={String(localVehicle.dailyRate)}
                   onChange={(e) =>
-                    setVehicle({ ...vehicle, dailyRate: Number(e.target.value) })
+                    setLocalVehicle({
+                      ...localVehicle,
+                      dailyRate: Number(e.target.value),
+                    })
                   }
-                  className={!vehicle.dailyRate ? "border-destructive" : ""}
+                  className={
+                    !localVehicle.dailyRate ? "border-destructive" : ""
+                  }
                 />
               </div>
 
@@ -359,10 +361,14 @@ export default function AdminVehicleEditPage() {
                 <Input
                   id="hourlyRate"
                   type="number"
-                  value={vehicle.hourlyRate ? String(vehicle.hourlyRate) : ""}
+                  value={
+                    localVehicle.hourlyRate
+                      ? String(localVehicle.hourlyRate)
+                      : ""
+                  }
                   onChange={(e) =>
-                    setVehicle({
-                      ...vehicle,
+                    setLocalVehicle({
+                      ...localVehicle,
                       hourlyRate: e.target.value
                         ? Number(e.target.value)
                         : null,
@@ -372,14 +378,20 @@ export default function AdminVehicleEditPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label>Location <span className="text-destructive">*</span></Label>
+                <Label>
+                  Location <span className="text-destructive">*</span>
+                </Label>
                 <Select
-                  value={vehicle.locationId}
+                  value={localVehicle.locationId}
                   onValueChange={(value: string) =>
-                    setVehicle({ ...vehicle, locationId: value })
+                    setLocalVehicle({ ...localVehicle, locationId: value })
                   }
                 >
-                  <SelectTrigger className={!vehicle.locationId ? "border-destructive" : ""}>
+                  <SelectTrigger
+                    className={
+                      !localVehicle.locationId ? "border-destructive" : ""
+                    }
+                  >
                     <SelectValue placeholder="Select location" />
                   </SelectTrigger>
                   <SelectContent>
@@ -393,15 +405,20 @@ export default function AdminVehicleEditPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="mileage">Mileage <span className="text-destructive">*</span></Label>
+                <Label htmlFor="mileage">
+                  Mileage <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="mileage"
                   type="number"
-                  value={String(vehicle.mileage)}
+                  value={String(localVehicle.mileage)}
                   onChange={(e) =>
-                    setVehicle({ ...vehicle, mileage: Number(e.target.value) })
+                    setLocalVehicle({
+                      ...localVehicle,
+                      mileage: Number(e.target.value),
+                    })
                   }
-                  className={!vehicle.mileage ? "border-destructive" : ""}
+                  className={!localVehicle.mileage ? "border-destructive" : ""}
                 />
               </div>
             </div>
@@ -417,7 +434,6 @@ export default function AdminVehicleEditPage() {
                 }}
                 onUploadError={(error) => {
                   console.error("Upload failed:", error);
-                  setError(`Image upload failed: ${error}`);
                 }}
                 className="mb-4"
               />
@@ -426,28 +442,39 @@ export default function AdminVehicleEditPage() {
             <div className="mt-6 flex gap-2">
               <Button
                 type="button"
-                onClick={save}
-                disabled={!canSave || loading}
+                onClick={handleSave}
+                disabled={!canSave || updateVehicleMutation.isPending}
               >
-                Save Changes
+                {updateVehicleMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => router.back()}
-                disabled={loading}
+                disabled={updateVehicleMutation.isPending}
               >
                 Cancel
               </Button>
             </div>
 
-            <InlineError message={error} className="mt-4" />
+            <InlineError
+              message={
+                vehicleError?.message ||
+                updateVehicleMutation.error?.message ||
+                deleteVehicleMutation.error?.message
+              }
+              className="mt-4"
+            />
           </CardContent>
         </Card>
-      ) : loading ? (
-        <div>Loading...</div>
+      ) : vehicleError ? (
+        <div className="text-center text-destructive py-8">
+          Error loading vehicle: {vehicleError.message}
+        </div>
       ) : (
-        <div>No vehicle found.</div>
+        <div className="text-center text-muted-foreground py-8">
+          No vehicle found.
+        </div>
       )}
     </PageContainer>
   );

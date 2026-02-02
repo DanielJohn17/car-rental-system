@@ -10,7 +10,10 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { InlineError } from "../../../../components/inline-error";
-import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
+import {
+  getResponseErrorMessage,
+  toUserErrorMessage,
+} from "../../../../lib/errors";
 
 type Location = {
   id: string;
@@ -141,7 +144,7 @@ export default function NewBookingPage() {
         if (cancelled) return;
         const data = Array.isArray(raw) ? raw : raw.data;
         setLocations(data);
-        const first = data[0];
+        const first = data?.[0];
         if (first) {
           setPickupLocationId((p) => p || first.id);
           setReturnLocationId((p) => p || first.id);
@@ -240,7 +243,10 @@ export default function NewBookingPage() {
       });
 
       if (!intentRes.ok) {
-        const message = await getResponseErrorMessage(intentRes, "Payment intent failed");
+        const message = await getResponseErrorMessage(
+          intentRes,
+          "Payment intent failed",
+        );
         throw new Error(message);
       }
 
@@ -268,7 +274,10 @@ export default function NewBookingPage() {
       <div style={{ display: "grid", gap: 12 }}>
         <label style={{ display: "grid", gap: 6 }}>
           <span>Guest name (optional)</span>
-          <input value={guestName} onChange={(e) => setGuestName(e.target.value)} />
+          <input
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+          />
         </label>
 
         <label style={{ display: "grid", gap: 6 }}>
@@ -334,7 +343,11 @@ export default function NewBookingPage() {
         </label>
 
         <div style={{ display: "flex", gap: 12 }}>
-          <button type="button" onClick={calculate} disabled={!canCalculate || loading}>
+          <button
+            type="button"
+            onClick={calculate}
+            disabled={!canCalculate || loading}
+          >
             Calculate pricing
           </button>
           <button
@@ -347,16 +360,31 @@ export default function NewBookingPage() {
         </div>
 
         {pricing ? (
-          <div style={{ border: "1px solid #e5e5e5", borderRadius: 8, padding: 12 }}>
-            <div>Total: {pricing.totalPrice} {pricing.currency}</div>
+          <div
+            style={{
+              border: "1px solid #e5e5e5",
+              borderRadius: 8,
+              padding: 12,
+            }}
+          >
             <div>
-              Deposit ({pricing.depositPercentage}%): {pricing.depositAmount} {pricing.currency}
+              Total: {pricing.totalPrice} {pricing.currency}
+            </div>
+            <div>
+              Deposit ({pricing.depositPercentage}%): {pricing.depositAmount}{" "}
+              {pricing.currency}
             </div>
           </div>
         ) : null}
 
         {clientSecret ? (
-          <div style={{ border: "1px solid #e5e5e5", borderRadius: 8, padding: 12 }}>
+          <div
+            style={{
+              border: "1px solid #e5e5e5",
+              borderRadius: 8,
+              padding: 12,
+            }}
+          >
             <h2 style={{ fontSize: 18, marginBottom: 12 }}>Pay deposit</h2>
 
             {!stripePromise ? (

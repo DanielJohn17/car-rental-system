@@ -18,9 +18,7 @@ export default function GlobalError({
       <h1 className="text-2xl font-semibold tracking-tight">
         Something went wrong
       </h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {message}
-      </p>
+      <p className="mt-2 text-sm text-muted-foreground">{message}</p>
 
       <div className="mt-6 flex flex-wrap gap-2">
         <button

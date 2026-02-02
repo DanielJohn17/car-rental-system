@@ -31,7 +31,9 @@ export async function apiFetch<T>(
     return (await res.json()) as T;
   } catch (error) {
     if (error instanceof TypeError && error.message.includes("fetch failed")) {
-      throw new Error("Unable to connect to the server. Please ensure the backend service is running.");
+      throw new Error(
+        "Unable to connect to the server. Please ensure the backend service is running.",
+      );
     }
     throw error;
   }

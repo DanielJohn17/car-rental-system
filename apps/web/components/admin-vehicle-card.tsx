@@ -71,12 +71,10 @@ export function AdminVehicleCard({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link href={`/admin/vehicles/${vehicle.id}`}>
-                  Edit Vehicle
-                </Link>
+                <Link href={`/admin/vehicles/${vehicle.id}`}>Edit Vehicle</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 onClick={() => onDelete(vehicle.id)}
                 className="text-destructive"
               >
@@ -103,7 +101,9 @@ export function AdminVehicleCard({
             <Label>Status</Label>
             <Select
               value={vehicle.status}
-              onValueChange={(value: string) => onStatusUpdate(vehicle.id, value)}
+              onValueChange={(value: string) =>
+                onStatusUpdate(vehicle.id, value)
+              }
             >
               <SelectTrigger className="w-32">
                 <SelectValue />
