@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { InlineError } from "@/components/inline-error";
-import {
-  getResponseErrorMessage,
-  toUserErrorMessage,
-} from "@/lib/errors";
+import { getResponseErrorMessage, toUserErrorMessage } from "@/lib/errors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,8 +159,12 @@ export default function AdminUsersPage() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Users Management</h1>
-          <p className="text-muted-foreground mt-2">Manage sales staff and administrators</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Users Management
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Manage sales staff and administrators
+          </p>
         </div>
         <Link href="/admin/dashboard">
           <Button variant="outline">Back to Dashboard</Button>
@@ -234,11 +235,7 @@ export default function AdminUsersPage() {
               <UserPlus className="h-4 w-4" />
               Create Staff
             </Button>
-            <Button
-              variant="outline"
-              onClick={load}
-              disabled={loading}
-            >
+            <Button variant="outline" onClick={load} disabled={loading}>
               Refresh
             </Button>
           </div>
@@ -262,7 +259,9 @@ export default function AdminUsersPage() {
             <div className="text-center py-8 text-muted-foreground">
               <UserPlus className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No users found.</p>
-              <p className="text-sm">Create your first sales staff member above.</p>
+              <p className="text-sm">
+                Create your first sales staff member above.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -272,37 +271,48 @@ export default function AdminUsersPage() {
                     <div className="flex items-start justify-between">
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold">{user.fullName}</h3>
-                          <Badge 
-                            variant={user.role === "ADMIN" ? "default" : "secondary"}
+                          <h3 className="text-lg font-semibold">
+                            {user.fullName}
+                          </h3>
+                          <Badge
+                            variant={
+                              user.role === "ADMIN" ? "default" : "secondary"
+                            }
                             className="text-xs"
                           >
                             {user.role}
                           </Badge>
-                          <Badge 
+                          <Badge
                             variant={user.verified ? "default" : "outline"}
                             className="text-xs"
                           >
                             {user.verified ? "Verified" : "Unverified"}
                           </Badge>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
                           <div>
-                            <span className="font-medium">Email:</span> {user.email}
+                            <span className="font-medium">Email:</span>{" "}
+                            {user.email}
                           </div>
                           <div>
-                            <span className="font-medium">Phone:</span> {user.phone}
+                            <span className="font-medium">Phone:</span>{" "}
+                            {user.phone}
                           </div>
                           <div>
-                            <span className="font-medium">Created:</span> {new Date(user.createdAt).toLocaleDateString()}
+                            <span className="font-medium">Created:</span>{" "}
+                            {new Date(user.createdAt).toLocaleDateString()}
                           </div>
                         </div>
                       </div>
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -357,31 +367,37 @@ export default function AdminUsersPage() {
                 <Input
                   id="edit-fullName"
                   value={editingUser.fullName}
-                  onChange={(e) => 
-                    setEditingUser(prev => prev ? {...prev, fullName: e.target.value} : null)
+                  onChange={(e) =>
+                    setEditingUser((prev) =>
+                      prev ? { ...prev, fullName: e.target.value } : null,
+                    )
                   }
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="edit-email">Email</Label>
                 <Input
                   id="edit-email"
                   type="email"
                   value={editingUser.email}
-                  onChange={(e) => 
-                    setEditingUser(prev => prev ? {...prev, email: e.target.value} : null)
+                  onChange={(e) =>
+                    setEditingUser((prev) =>
+                      prev ? { ...prev, email: e.target.value } : null,
+                    )
                   }
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="edit-phone">Phone</Label>
                 <Input
                   id="edit-phone"
                   value={editingUser.phone}
-                  onChange={(e) => 
-                    setEditingUser(prev => prev ? {...prev, phone: e.target.value} : null)
+                  onChange={(e) =>
+                    setEditingUser((prev) =>
+                      prev ? { ...prev, phone: e.target.value } : null,
+                    )
                   }
                 />
               </div>

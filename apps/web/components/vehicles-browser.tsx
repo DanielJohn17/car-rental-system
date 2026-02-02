@@ -4,7 +4,10 @@ import { PageContainer } from "@/components/page-container";
 import { SiteHeader } from "@/components/site-header";
 import { InlineError } from "@/components/inline-error";
 import { VehicleCard, type VehicleSummary } from "@/components/vehicle-card";
-import { VehicleFilters, type LocationOption } from "@/components/vehicle-filters";
+import {
+  VehicleFilters,
+  type LocationOption,
+} from "@/components/vehicle-filters";
 
 type VehicleSearchResponse = {
   data: VehicleSummary[];

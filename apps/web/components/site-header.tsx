@@ -17,10 +17,10 @@ export function SiteHeader({
         {showAdminCtas ? (
           <div className="flex items-center gap-2">
             <Button asChild variant="outline">
-              <Link href="/admin/login">Login</Link>
+              <Link href="/admin/login">Renter Login</Link>
             </Button>
             <Button asChild>
-              <Link href="/admin/register">Register</Link>
+              <Link href="/admin/register">Become a Renter</Link>
             </Button>
           </div>
         ) : null}

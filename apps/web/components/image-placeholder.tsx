@@ -37,20 +37,25 @@ export function ImagePlaceholder({
 
   // If no src or image error, show placeholder
   if (!src || imageError) {
-    const IconComponent = variant === "vehicle" ? Car : variant === "user" ? User : Car;
-    
+    const IconComponent =
+      variant === "vehicle" ? Car : variant === "user" ? User : Car;
+
     return (
       <div
         className={cn(
           "flex items-center justify-center bg-muted rounded-md border",
-          fallbackClassName
+          fallbackClassName,
         )}
         style={{ width, height }}
       >
         <div className="flex flex-col items-center justify-center text-muted-foreground">
           <IconComponent className="h-8 w-8 mb-2 opacity-50" />
           <span className="text-xs font-medium">
-            {variant === "vehicle" ? "No Image" : variant === "user" ? "No Avatar" : "No Image"}
+            {variant === "vehicle"
+              ? "No Image"
+              : variant === "user"
+                ? "No Avatar"
+                : "No Image"}
           </span>
         </div>
       </div>
@@ -83,7 +88,7 @@ export function ImagePlaceholder({
         height={height}
         className={cn(
           "object-cover transition-opacity duration-300",
-          imageLoading ? "opacity-0" : "opacity-100"
+          imageLoading ? "opacity-0" : "opacity-100",
         )}
         onError={handleImageError}
         onLoad={handleImageLoad}
@@ -109,7 +114,7 @@ export function VehicleImagePlaceholder({
   height?: number;
 }) {
   const primaryImage = vehicle?.images?.[0] || null;
-  
+
   return (
     <ImagePlaceholder
       src={primaryImage}
@@ -147,7 +152,7 @@ export function UserImagePlaceholder({
     <div
       className={cn(
         "flex items-center justify-center bg-primary/10 text-primary rounded-full border",
-        className
+        className,
       )}
       style={{ width: size, height: size }}
     >
