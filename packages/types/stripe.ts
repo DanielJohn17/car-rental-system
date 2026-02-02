@@ -34,11 +34,11 @@ export interface StripeWebhookPayload {
 }
 
 export interface PaymentIntentSucceededPayload extends StripeWebhookPayload {
-  type: 'payment_intent.succeeded';
+  type: "payment_intent.succeeded";
   data: {
     object: {
       id: string;
-      object: 'payment_intent';
+      object: "payment_intent";
       amount: number;
       amount_capturable: number;
       amount_details: {
@@ -52,10 +52,10 @@ export interface PaymentIntentSucceededPayload extends StripeWebhookPayload {
       cancellation_reason: string | null;
       capture_method: string;
       charges: {
-        object: 'list';
+        object: "list";
         data: Array<{
           id: string;
-          object: 'charge';
+          object: "charge";
           [key: string]: any;
         }>;
         has_more: boolean;
@@ -84,7 +84,7 @@ export interface PaymentIntentSucceededPayload extends StripeWebhookPayload {
       source: any;
       statement_descriptor: string | null;
       statement_descriptor_suffix: string | null;
-      status: 'succeeded';
+      status: "succeeded";
       transfer_data: any;
       transfer_group: string | null;
     };
