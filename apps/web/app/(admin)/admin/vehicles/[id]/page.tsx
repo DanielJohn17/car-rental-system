@@ -7,13 +7,6 @@ import { useParams, useRouter } from "next/navigation";
 import { InlineError } from "../../../../../components/inline-error";
 import { PageContainer } from "../../../../../components/page-container";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../../../../components/ui/select";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -27,10 +20,27 @@ import {
   CardHeader,
   CardTitle,
 } from "../../../../../components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../../../../components/ui/select";
 import { Input } from "../../../../../components/ui/input";
 import { Label } from "../../../../../components/ui/label";
 import { CloudinaryImageUpload } from "../../../../../components/cloudinary-image-upload";
+import { 
+  VehicleFormSkeleton,
+  LoadingSkeleton 
+} from "../../../../../components/loading-skeleton";
 import { getResponseErrorMessage, toUserErrorMessage } from "../../../../../lib/errors";
+
+type Location = {
+  id: string;
+  name: string;
+  address: string;
+};
 
 type Vehicle = {
   id: string;
@@ -60,6 +70,8 @@ export default function AdminVehicleEditPage() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [locations, setLocations] = useState<Location[]>([]);
 
   const canSave = useMemo(() => {
     return Boolean(vehicle?.make && vehicle?.model && vehicle?.year);
@@ -83,11 +95,29 @@ export default function AdminVehicleEditPage() {
         if (!cancelled)
           setError(toUserErrorMessage(e, "Failed to load vehicle"));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setInitialLoading(false);
+        }
+      }
+    }
+
+    async function loadLocations() {
+      try {
+        const res = await fetch("/api/public/locations?limit=100&offset=0", {
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const raw = (await res.json()) as Location[] | any;
+        const data = Array.isArray(raw) ? raw : raw.data;
+        if (!cancelled) setLocations(data);
+      } catch {
+        // ignore
       }
     }
 
     void load();
+    void loadLocations();
 
     return () => {
       cancelled = true;
@@ -172,34 +202,38 @@ export default function AdminVehicleEditPage() {
         </div>
       </div>
 
-      {vehicle ? (
+      {initialLoading ? (
+        <VehicleFormSkeleton />
+      ) : vehicle ? (
         <Card>
           <CardContent className="pt-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div className="grid gap-2">
-                <Label htmlFor="make">Make</Label>
+                <Label htmlFor="make">Make <span className="text-destructive">*</span></Label>
                 <Input
                   id="make"
                   value={vehicle.make}
                   onChange={(e) =>
                     setVehicle({ ...vehicle, make: e.target.value })
                   }
+                  className={!vehicle.make ? "border-destructive" : ""}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="model">Model</Label>
+                <Label htmlFor="model">Model <span className="text-destructive">*</span></Label>
                 <Input
                   id="model"
                   value={vehicle.model}
                   onChange={(e) =>
                     setVehicle({ ...vehicle, model: e.target.value })
                   }
+                  className={!vehicle.model ? "border-destructive" : ""}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="year">Year</Label>
+                <Label htmlFor="year">Year <span className="text-destructive">*</span></Label>
                 <Input
                   id="year"
                   type="number"
@@ -207,28 +241,31 @@ export default function AdminVehicleEditPage() {
                   onChange={(e) =>
                     setVehicle({ ...vehicle, year: Number(e.target.value) })
                   }
+                  className={!vehicle.year ? "border-destructive" : ""}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="licensePlate">License plate</Label>
+                <Label htmlFor="licensePlate">License plate <span className="text-destructive">*</span></Label>
                 <Input
                   id="licensePlate"
                   value={vehicle.licensePlate}
                   onChange={(e) =>
                     setVehicle({ ...vehicle, licensePlate: e.target.value })
                   }
+                  className={!vehicle.licensePlate ? "border-destructive" : ""}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="vin">VIN</Label>
+                <Label htmlFor="vin">VIN <span className="text-destructive">*</span></Label>
                 <Input
                   id="vin"
                   value={vehicle.vin}
                   onChange={(e) =>
                     setVehicle({ ...vehicle, vin: e.target.value })
                   }
+                  className={!vehicle.vin ? "border-destructive" : ""}
                 />
               </div>
 
@@ -292,7 +329,7 @@ export default function AdminVehicleEditPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="seats">Seats</Label>
+                <Label htmlFor="seats">Seats <span className="text-destructive">*</span></Label>
                 <Input
                   id="seats"
                   type="number"
@@ -300,11 +337,12 @@ export default function AdminVehicleEditPage() {
                   onChange={(e) =>
                     setVehicle({ ...vehicle, seats: Number(e.target.value) })
                   }
+                  className={!vehicle.seats ? "border-destructive" : ""}
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="dailyRate">Daily rate</Label>
+                <Label htmlFor="dailyRate">Daily rate <span className="text-destructive">*</span></Label>
                 <Input
                   id="dailyRate"
                   type="number"
@@ -312,6 +350,7 @@ export default function AdminVehicleEditPage() {
                   onChange={(e) =>
                     setVehicle({ ...vehicle, dailyRate: Number(e.target.value) })
                   }
+                  className={!vehicle.dailyRate ? "border-destructive" : ""}
                 />
               </div>
 
@@ -333,18 +372,28 @@ export default function AdminVehicleEditPage() {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="locationId">Location ID</Label>
-                <Input
-                  id="locationId"
+                <Label>Location <span className="text-destructive">*</span></Label>
+                <Select
                   value={vehicle.locationId}
-                  onChange={(e) =>
-                    setVehicle({ ...vehicle, locationId: e.target.value })
+                  onValueChange={(value: string) =>
+                    setVehicle({ ...vehicle, locationId: value })
                   }
-                />
+                >
+                  <SelectTrigger className={!vehicle.locationId ? "border-destructive" : ""}>
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((l) => (
+                      <SelectItem key={l.id} value={l.id}>
+                        {l.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="mileage">Mileage</Label>
+                <Label htmlFor="mileage">Mileage <span className="text-destructive">*</span></Label>
                 <Input
                   id="mileage"
                   type="number"
@@ -352,6 +401,7 @@ export default function AdminVehicleEditPage() {
                   onChange={(e) =>
                     setVehicle({ ...vehicle, mileage: Number(e.target.value) })
                   }
+                  className={!vehicle.mileage ? "border-destructive" : ""}
                 />
               </div>
             </div>

@@ -27,7 +27,17 @@ import {
 } from "../../../../components/ui/card";
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
+import { CloudinaryImageUpload } from "../../../../components/cloudinary-image-upload";
+import { 
+  VehicleCardSkeleton, 
+  VehicleFormSkeleton, 
+  VehiclesListSkeleton,
+  LoadingSkeleton 
+} from "../../../../components/loading-skeleton";
 import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
+import { FormField } from "../../../../components/form-field";
+import { FormSelect } from "../../../../components/form-select";
+import { AdminVehicleCard } from "../../../../components/admin-vehicle-card";
 
 type Location = {
   id: string;
@@ -80,6 +90,7 @@ export default function AdminVehiclesPage() {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const [locations, setLocations] = useState<Location[]>([]);
 
@@ -134,6 +145,7 @@ export default function AdminVehiclesPage() {
       setError(toUserErrorMessage(e, "Failed to load vehicles"));
     } finally {
       setLoading(false);
+      setInitialLoading(false);
     }
   }
 
@@ -148,7 +160,7 @@ export default function AdminVehiclesPage() {
       setLocations(data);
       const first = data[0];
       if (first) {
-        setLocationId((v) => v || first.id);
+        setLocationId(first.id);
       }
     } catch {
       // ignore
@@ -258,162 +270,138 @@ export default function AdminVehiclesPage() {
           <CardTitle>Create vehicle</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <div className="grid gap-2">
-              <Label htmlFor="make">Make</Label>
-              <Input
+          {initialLoading ? (
+            <VehicleFormSkeleton />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <FormField
                 id="make"
+                label="Make"
                 value={make}
                 onChange={(e) => setMake(e.target.value)}
+                required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="model">Model</Label>
-              <Input
+              <FormField
                 id="model"
+                label="Model"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
+                required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="year">Year</Label>
-              <Input
+              <FormField
                 id="year"
+                label="Year"
                 type="number"
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
+                required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="licensePlate">License plate</Label>
-              <Input
+              <FormField
                 id="licensePlate"
+                label="License plate"
                 value={licensePlate}
                 onChange={(e) => setLicensePlate(e.target.value)}
+                required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="vin">VIN</Label>
-              <Input
+              <FormField
                 id="vin"
+                label="VIN"
                 value={vin}
                 onChange={(e) => setVin(e.target.value)}
+                required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="color">Color (optional)</Label>
-              <Input
+              <FormField
                 id="color"
+                label="Color (optional)"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label>Fuel type</Label>
-              <Select
+              <FormSelect
+                label="Fuel type"
                 value={fuelType}
                 onValueChange={(value: string) =>
                   setFuelType(value as (typeof FUEL_TYPES)[number])
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FUEL_TYPES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                options={[...FUEL_TYPES]}
+              />
 
-            <div className="grid gap-2">
-              <Label>Transmission</Label>
-              <Select
+              <FormSelect
+                label="Transmission"
                 value={transmission}
                 onValueChange={(value: string) =>
                   setTransmission(value as (typeof TRANSMISSIONS)[number])
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TRANSMISSIONS.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                options={[...TRANSMISSIONS]}
+              />
 
-            <div className="grid gap-2">
-              <Label htmlFor="seats">Seats</Label>
-              <Input
+              <FormField
                 id="seats"
+                label="Seats"
                 type="number"
                 value={seats}
                 onChange={(e) => setSeats(e.target.value)}
+                required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="dailyRate">Daily rate</Label>
-              <Input
+              <FormField
                 id="dailyRate"
+                label="Daily rate"
                 type="number"
                 value={dailyRate}
                 onChange={(e) => setDailyRate(e.target.value)}
+                required
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="hourlyRate">Hourly rate (optional)</Label>
-              <Input
+              <FormField
                 id="hourlyRate"
+                label="Hourly rate (optional)"
                 type="number"
                 value={hourlyRate}
                 onChange={(e) => setHourlyRate(e.target.value)}
               />
-            </div>
 
-            <div className="grid gap-2">
-              <Label>Location</Label>
-              <Select
+              <FormSelect
+                label="Location"
                 value={locationId}
                 onValueChange={(value: string) => setLocationId(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>
-                      {l.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                options={locations}
+                required
+                placeholder="Select location"
+              />
 
-            <div className="grid gap-2">
-              <Label htmlFor="mileage">Mileage</Label>
-              <Input
+              <FormField
                 id="mileage"
+                label="Mileage"
                 type="number"
                 value={mileage}
                 onChange={(e) => setMileage(e.target.value)}
+                required
               />
-            </div>
+          </div>)}
+
+          <div className="mt-6">
+            <h3 className="text-lg font-medium mb-4">Vehicle Images</h3>
+            <CloudinaryImageUpload
+              folder="vehicles/new"
+              tags={["vehicle", "car-rental"]}
+              multiple={true}
+              maxFiles={5}
+              onUploadComplete={(result) => {
+                console.log("Images uploaded:", result);
+                // Handle successful upload (e.g., update vehicle images)
+              }}
+              onUploadError={(error) => {
+                console.error("Upload failed:", error);
+                setError(`Image upload failed: ${error}`);
+              }}
+              className="mb-4"
+            />
           </div>
 
           <div className="mt-6 flex gap-2">
@@ -444,78 +432,19 @@ export default function AdminVehiclesPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {vehicles.map((v) => (
-              <Card key={v.id}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold">
-                        {v.make} {v.model} ({v.year})
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        ${v.dailyRate}/day • {v.status}
-                      </p>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          Actions
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/admin/vehicles/${v.id}`}>
-                            Edit Vehicle
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => deleteVehicle(v.id)}
-                          className="text-destructive"
-                        >
-                          Delete Vehicle
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
-                    <div className="text-sm">
-                      <span className="font-medium">ID:</span> {v.id}
-                    </div>
-                    <div className="text-sm">
-                      <span className="font-medium">Plate:</span> {v.licensePlate}
-                    </div>
-                    <div className="text-sm">
-                      <span className="font-medium">VIN:</span> {v.vin}
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center gap-4">
-                    <div className="grid gap-2">
-                      <Label>Status</Label>
-                      <Select
-                        value={v.status}
-                        onValueChange={(value: string) => updateStatus(v.id, value)}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {VEHICLE_STATUSES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {s}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {vehicles.length === 0 ? (
+            {loading && vehicles.length === 0 ? (
+              <VehiclesListSkeleton />
+            ) : vehicles.length > 0 ? (
+              vehicles.map((v) => (
+                <AdminVehicleCard
+                  key={v.id}
+                  vehicle={v}
+                  onStatusUpdate={updateStatus}
+                  onDelete={deleteVehicle}
+                  vehicleStatuses={VEHICLE_STATUSES}
+                />
+              ))
+            ) : !loading && vehicles.length === 0 && !initialLoading ? (
               <div className="text-center text-muted-foreground py-8">
                 No vehicles found.
               </div>
