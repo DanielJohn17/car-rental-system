@@ -11,5 +11,5 @@ export async function POST(request: Request) {
     maxAge: 0,
   });
 
-  return NextResponse.redirect(new URL("/admin/login", request.url));
+  return NextResponse.redirect(new URL("/", request.url));
 }

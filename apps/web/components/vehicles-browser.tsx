@@ -4,6 +4,9 @@ import { PageContainer } from "@/components/page-container";
 import { SiteHeader } from "@/components/site-header";
 import { InlineError } from "@/components/inline-error";
 import { VehicleCard, type VehicleSummary } from "@/components/vehicle-card";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   VehicleFilters,
   type LocationOption,
@@ -129,9 +132,24 @@ export async function VehiclesBrowser({
         </div>
 
         {vehicles.data.length === 0 ? (
-          <div className="mt-6 text-sm text-muted-foreground">
-            No vehicles found.
-          </div>
+          <Card className="mt-6">
+            <CardContent className="py-10">
+              <div className="text-center">
+                <div className="text-lg font-medium">No vehicles available</div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Try adjusting your filters or selecting another location.
+                </p>
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <Button asChild variant="outline">
+                    <Link href={action}>Reset filters</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link href="/vehicles">Browse all vehicles</Link>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         ) : null}
       </PageContainer>
     </div>

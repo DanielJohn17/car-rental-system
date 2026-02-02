@@ -9,22 +9,30 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
-import { InlineError } from "../../../../components/inline-error";
+import Link from "next/link";
+import { useMutation } from "@tanstack/react-query";
+
+import { InlineError } from "@/components/inline-error";
+import { PageContainer } from "@/components/page-container";
+import { SiteHeader } from "@/components/site-header";
+import { Button } from "@/components/ui/button";
 import {
-  getResponseErrorMessage,
-  toUserErrorMessage,
-} from "../../../../lib/errors";
-
-type Location = {
-  id: string;
-  name: string;
-  address: string;
-};
-
-type LocationListResponse = {
-  data: Location[];
-  total: number;
-};
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getResponseErrorMessage, toUserErrorMessage } from "@/lib/errors";
+import { useLocations } from "@/lib/queries/locations";
 
 type PricingBreakdown = {
   vehicleId: string;
@@ -55,6 +63,21 @@ type PaymentIntentResponse = {
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
   : null;
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const message = await getResponseErrorMessage(res, "Request failed");
+    throw new Error(message);
+  }
+
+  return (await res.json()) as T;
+}
 
 function CheckoutForm({
   bookingId,
@@ -101,23 +124,21 @@ function CheckoutForm({
   }
 
   return (
-    <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
+    <form onSubmit={onSubmit} className="grid gap-3">
       <PaymentElement />
-      <button type="submit" disabled={!stripe || !elements || loading}>
-        Pay deposit
-      </button>
+      <Button type="submit" disabled={!stripe || !elements || loading}>
+        {loading ? "Processing..." : "Pay deposit"}
+      </Button>
       <InlineError message={error} />
     </form>
   );
 }
 
 export default function NewBookingPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const vehicleId = searchParams.get("vehicleId") ?? "";
 
-  const [locations, setLocations] = useState<Location[]>([]);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -131,65 +152,102 @@ export default function NewBookingPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+
+  const locationParams = useMemo(() => ({ limit: 100, offset: 0 }), []);
+  const locationsQuery = useLocations(locationParams);
+
+  const locations = useMemo(() => {
+    const raw = locationsQuery.data;
+    if (!raw) return [];
+    return Array.isArray(raw) ? raw : raw.data;
+  }, [locationsQuery.data]);
 
   useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/public/locations?limit=100&offset=0`, { cache: "no-store" })
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to load locations");
-        return r.json();
-      })
-      .then((raw: LocationListResponse | Location[]) => {
-        if (cancelled) return;
-        const data = Array.isArray(raw) ? raw : raw.data;
-        setLocations(data);
-        const first = data?.[0];
-        if (first) {
-          setPickupLocationId((p) => p || first.id);
-          setReturnLocationId((p) => p || first.id);
-        }
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        setError(e instanceof Error ? e.message : "Failed to load locations");
-      });
+    const first = locations?.[0];
+    if (!first) return;
+    setPickupLocationId((p) => p || first.id);
+    setReturnLocationId((p) => p || first.id);
+  }, [locations]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const locationsError = useMemo(() => {
+    if (!locationsQuery.error) return null;
+    return toUserErrorMessage(locationsQuery.error, "Failed to load locations");
+  }, [locationsQuery.error]);
 
   const canCalculate = useMemo(() => {
     return Boolean(vehicleId && startDateTime && endDateTime);
   }, [vehicleId, startDateTime, endDateTime]);
 
+  const pricingMutation = useMutation({
+    mutationFn: (input: {
+      vehicleId: string;
+      startDate: string;
+      endDate: string;
+      locationId?: string;
+    }) => postJson<PricingBreakdown>("/api/public/pricing/calculate", input),
+    onSuccess: (data) => {
+      setPricing(data);
+    },
+    onError: (e: unknown) => {
+      setError(toUserErrorMessage(e, "Pricing failed"));
+    },
+  });
+
+  const bookingMutation = useMutation({
+    mutationFn: async (input: {
+      guestName?: string;
+      guestPhone: string;
+      guestEmail?: string;
+      vehicleId: string;
+      startDateTime: string;
+      endDateTime: string;
+      pickupLocationId: string;
+      returnLocationId: string;
+      totalPrice: number;
+      depositAmount: number;
+    }) => {
+      const booking = await postJson<Booking>("/api/public/bookings", input);
+      const depositCents = Math.round(input.depositAmount * 100);
+      const intent = await postJson<PaymentIntentResponse>(
+        "/api/public/payments/create-intent",
+        {
+          bookingId: booking.id,
+          amount: depositCents,
+          email: input.guestEmail || undefined,
+        },
+      );
+
+      return {
+        bookingId: booking.id,
+        clientSecret: intent.clientSecret,
+        paymentIntentId: intent.paymentIntentId,
+      };
+    },
+    onSuccess: (data) => {
+      setBookingId(data.bookingId);
+      setClientSecret(data.clientSecret);
+      setPaymentIntentId(data.paymentIntentId);
+    },
+    onError: (e: unknown) => {
+      setError(toUserErrorMessage(e, "Booking failed"));
+    },
+  });
+
+  const loading = pricingMutation.isPending || bookingMutation.isPending;
+
   async function calculate() {
     setError(null);
-    setLoading(true);
     try {
-      const res = await fetch(`/api/public/pricing/calculate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vehicleId,
-          startDate: startDateTime,
-          endDate: endDateTime,
-          locationId: pickupLocationId || undefined,
-        }),
+      await pricingMutation.mutateAsync({
+        vehicleId,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        locationId: pickupLocationId || undefined,
       });
-
-      if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Pricing failed");
-        throw new Error(message);
-      }
-
-      const data = (await res.json()) as PricingBreakdown;
-      setPricing(data);
     } catch (e: unknown) {
-      setError(toUserErrorMessage(e, "Pricing failed"));
-    } finally {
-      setLoading(false);
+      if (!pricingMutation.isError) {
+        setError(toUserErrorMessage(e, "Pricing failed"));
+      }
     }
   }
 
@@ -205,209 +263,214 @@ export default function NewBookingPage() {
       return;
     }
 
-    setLoading(true);
     try {
-      const res = await fetch(`/api/public/bookings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          guestName: guestName || undefined,
-          guestPhone,
-          guestEmail: guestEmail || undefined,
-          vehicleId,
-          startDateTime,
-          endDateTime,
-          pickupLocationId,
-          returnLocationId,
-          totalPrice: pricing.totalPrice,
-          depositAmount: pricing.depositAmount,
-        }),
+      await bookingMutation.mutateAsync({
+        guestName: guestName || undefined,
+        guestPhone,
+        guestEmail: guestEmail || undefined,
+        vehicleId,
+        startDateTime,
+        endDateTime,
+        pickupLocationId,
+        returnLocationId,
+        totalPrice: pricing.totalPrice,
+        depositAmount: pricing.depositAmount,
       });
-
-      if (!res.ok) {
-        const message = await getResponseErrorMessage(res, "Booking failed");
-        throw new Error(message);
-      }
-
-      const booking = (await res.json()) as Booking;
-
-      const depositCents = Math.round(pricing.depositAmount * 100);
-      const intentRes = await fetch(`/api/public/payments/create-intent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          bookingId: booking.id,
-          amount: depositCents,
-          email: guestEmail || undefined,
-        }),
-      });
-
-      if (!intentRes.ok) {
-        const message = await getResponseErrorMessage(
-          intentRes,
-          "Payment intent failed",
-        );
-        throw new Error(message);
-      }
-
-      const intent = (await intentRes.json()) as PaymentIntentResponse;
-      setBookingId(booking.id);
-      setClientSecret(intent.clientSecret);
-      setPaymentIntentId(intent.paymentIntentId);
     } catch (e: unknown) {
-      setError(toUserErrorMessage(e, "Booking failed"));
-    } finally {
-      setLoading(false);
+      if (!bookingMutation.isError) {
+        setError(toUserErrorMessage(e, "Booking failed"));
+      }
     }
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 28, marginBottom: 12 }}>New booking</h1>
-
-      {!vehicleId ? (
-        <p style={{ opacity: 0.8 }}>
-          Missing vehicleId. Go back to <a href="/vehicles">vehicles</a>.
-        </p>
-      ) : null}
-
-      <div style={{ display: "grid", gap: 12 }}>
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Guest name (optional)</span>
-          <input
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-          />
-        </label>
-
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Guest phone (required)</span>
-          <input
-            value={guestPhone}
-            onChange={(e) => setGuestPhone(e.target.value)}
-          />
-        </label>
-
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Guest email (optional)</span>
-          <input
-            value={guestEmail}
-            onChange={(e) => setGuestEmail(e.target.value)}
-          />
-        </label>
-
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Start date/time (ISO)</span>
-          <input
-            placeholder="2026-02-01T10:00:00Z"
-            value={startDateTime}
-            onChange={(e) => setStartDateTime(e.target.value)}
-          />
-        </label>
-
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>End date/time (ISO)</span>
-          <input
-            placeholder="2026-02-05T10:00:00Z"
-            value={endDateTime}
-            onChange={(e) => setEndDateTime(e.target.value)}
-          />
-        </label>
-
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Pickup location</span>
-          <select
-            value={pickupLocationId}
-            onChange={(e) => setPickupLocationId(e.target.value)}
-          >
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label style={{ display: "grid", gap: 6 }}>
-          <span>Return location</span>
-          <select
-            value={returnLocationId}
-            onChange={(e) => setReturnLocationId(e.target.value)}
-          >
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div style={{ display: "flex", gap: 12 }}>
-          <button
-            type="button"
-            onClick={calculate}
-            disabled={!canCalculate || loading}
-          >
-            Calculate pricing
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={!pricing || loading || Boolean(clientSecret)}
-          >
-            Create booking
-          </button>
+    <div>
+      <SiteHeader />
+      <PageContainer className="max-w-3xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-semibold tracking-tight">New booking</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Fill in the booking details, calculate pricing, then pay the deposit.
+          </p>
         </div>
 
-        {pricing ? (
-          <div
-            style={{
-              border: "1px solid #e5e5e5",
-              borderRadius: 8,
-              padding: 12,
-            }}
-          >
-            <div>
-              Total: {pricing.totalPrice} {pricing.currency}
-            </div>
-            <div>
-              Deposit ({pricing.depositPercentage}%): {pricing.depositAmount}{" "}
-              {pricing.currency}
-            </div>
+        {!vehicleId ? (
+          <Card>
+            <CardContent className="py-10">
+              <div className="text-center">
+                <div className="text-lg font-medium">No vehicle selected</div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Choose a vehicle first to create a booking.
+                </p>
+                <div className="mt-4 flex justify-center">
+                  <Button asChild>
+                    <Link href="/vehicles">Browse vehicles</Link>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Guest details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2 sm:col-span-2">
+                    <Label htmlFor="guestName">Guest name (optional)</Label>
+                    <Input
+                      id="guestName"
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder="Full name"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="guestPhone">Guest phone (required)</Label>
+                    <Input
+                      id="guestPhone"
+                      value={guestPhone}
+                      onChange={(e) => setGuestPhone(e.target.value)}
+                      placeholder="Phone number"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="guestEmail">Guest email (optional)</Label>
+                    <Input
+                      id="guestEmail"
+                      type="email"
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      placeholder="Email"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Trip details</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="startDateTime">Start date/time (ISO)</Label>
+                    <Input
+                      id="startDateTime"
+                      placeholder="2026-02-01T10:00:00Z"
+                      value={startDateTime}
+                      onChange={(e) => setStartDateTime(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="endDateTime">End date/time (ISO)</Label>
+                    <Input
+                      id="endDateTime"
+                      placeholder="2026-02-05T10:00:00Z"
+                      value={endDateTime}
+                      onChange={(e) => setEndDateTime(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="pickupLocationId">Pickup location</Label>
+                    <Select
+                      value={pickupLocationId}
+                      onValueChange={(value: string) => setPickupLocationId(value)}
+                    >
+                      <SelectTrigger id="pickupLocationId">
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>
+                            {l.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="returnLocationId">Return location</Label>
+                    <Select
+                      value={returnLocationId}
+                      onValueChange={(value: string) => setReturnLocationId(value)}
+                    >
+                      <SelectTrigger id="returnLocationId">
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>
+                            {l.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={calculate} disabled={!canCalculate || loading}>
+                    {loading ? "Calculating..." : "Calculate pricing"}
+                  </Button>
+                  <Button type="button" onClick={submit} disabled={!pricing || loading || Boolean(clientSecret)}>
+                    {loading ? "Working..." : "Create booking"}
+                  </Button>
+                </div>
+
+                <InlineError message={error ?? locationsError} className="mt-4" />
+              </CardContent>
+            </Card>
+
+            {pricing ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Pricing</CardTitle>
+                </CardHeader>
+                <CardContent className="text-sm text-muted-foreground">
+                  <div>
+                    <span className="font-medium text-foreground">Total:</span>{" "}
+                    {pricing.totalPrice} {pricing.currency}
+                  </div>
+                  <div className="mt-1">
+                    <span className="font-medium text-foreground">Deposit</span> ({pricing.depositPercentage}%):{" "}
+                    {pricing.depositAmount} {pricing.currency}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {clientSecret ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Pay deposit</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!stripePromise ? (
+                    <InlineError message="Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" />
+                  ) : (
+                    <Elements
+                      stripe={stripePromise}
+                      options={{ clientSecret, appearance: { theme: "stripe" } }}
+                    >
+                      <CheckoutForm
+                        bookingId={bookingId ?? ""}
+                        onPaid={() => {
+                          void paymentIntentId;
+                        }}
+                      />
+                    </Elements>
+                  )}
+                </CardContent>
+              </Card>
+            ) : null}
           </div>
-        ) : null}
-
-        {clientSecret ? (
-          <div
-            style={{
-              border: "1px solid #e5e5e5",
-              borderRadius: 8,
-              padding: 12,
-            }}
-          >
-            <h2 style={{ fontSize: 18, marginBottom: 12 }}>Pay deposit</h2>
-
-            {!stripePromise ? (
-              <InlineError message="Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" />
-            ) : (
-              <Elements
-                stripe={stripePromise}
-                options={{ clientSecret, appearance: { theme: "stripe" } }}
-              >
-                <CheckoutForm
-                  bookingId={bookingId ?? ""}
-                  onPaid={() => {
-                    // No-op: webhook will finalize status on backend
-                    void paymentIntentId;
-                  }}
-                />
-              </Elements>
-            )}
-          </div>
-        ) : null}
-
-        <InlineError message={error} />
-      </div>
-    </main>
+        )}
+      </PageContainer>
+    </div>
   );
 }
