@@ -24,11 +24,40 @@ export class StripeService {
         'STRIPE_API_KEY or STRIPE_WEBHOOK_SECRET not configured',
       );
     }
-
     this.stripe = new Stripe(apiKey || '', {
       apiVersion: '2023-10-16',
     });
     this.webhookSecret = webhookSecret || '';
+  }
+
+  async createExpressConnectAccount(input: {
+    email: string;
+  }): Promise<{ accountId: string }> {
+    const account = await this.stripe.accounts.create({
+      type: 'express',
+      email: input.email,
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+    });
+
+    return { accountId: account.id };
+  }
+
+  async createConnectOnboardingLink(input: {
+    accountId: string;
+    refreshUrl: string;
+    returnUrl: string;
+  }): Promise<{ url: string }> {
+    const link = await this.stripe.accountLinks.create({
+      account: input.accountId,
+      refresh_url: input.refreshUrl,
+      return_url: input.returnUrl,
+      type: 'account_onboarding',
+    });
+
+    return { url: link.url };
   }
 
   /**
@@ -57,7 +86,11 @@ export class StripeService {
       }
     }
 
-    const paymentIntent = await this.stripe.paymentIntents.create(params);
+    const paymentIntent = input.connectedAccountId
+      ? await this.stripe.paymentIntents.create(params, {
+          stripeAccount: input.connectedAccountId,
+        })
+      : await this.stripe.paymentIntents.create(params);
 
     return {
       clientSecret: paymentIntent.client_secret || '',

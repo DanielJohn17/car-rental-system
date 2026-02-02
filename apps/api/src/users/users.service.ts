@@ -4,10 +4,12 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcryptjs from 'bcryptjs';
 import { User, UserRole } from '../auth/entities/user.entity';
+import { StripeService } from '../payments/services/stripe.service';
 import {
   CreateStaffDto,
   UpdateStaffDto,
@@ -20,7 +22,53 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly stripeService: StripeService,
+    private readonly configService: ConfigService,
   ) {}
+
+  async connectStripeAccountForAdmin(userId: string): Promise<{
+    stripeConnectAccountId: string;
+    onboardingUrl: string;
+  }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only admins can connect a Stripe account');
+    }
+
+    if (!user.email) {
+      throw new BadRequestException('User email is required to create Stripe account');
+    }
+
+    if (!user.stripeConnectAccountId) {
+      const created = await this.stripeService.createExpressConnectAccount({
+        email: user.email,
+      });
+
+      user.stripeConnectAccountId = created.accountId;
+      await this.userRepository.save(user);
+    }
+
+    const webAppUrl =
+      this.configService.get<string>('WEB_APP_URL') || 'http://localhost:3000';
+    const returnUrl = new URL('/admin/dashboard', webAppUrl).toString();
+    const refreshUrl = new URL('/admin/dashboard', webAppUrl).toString();
+
+    const onboarding = await this.stripeService.createConnectOnboardingLink({
+      accountId: user.stripeConnectAccountId,
+      refreshUrl,
+      returnUrl,
+    });
+
+    return {
+      stripeConnectAccountId: user.stripeConnectAccountId,
+      onboardingUrl: onboarding.url,
+    };
+  }
 
   async createStaffMember(
     createStaffDto: CreateStaffDto,

@@ -44,6 +44,24 @@ export interface JwtPayload {
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Post('me/stripe/connect')
+  @UseGuards(createRoleGuard([UserRole.ADMIN]))
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Create Stripe Connect account for current admin',
+    description:
+      'Creates (if missing) a Stripe Express Connect account for the logged-in admin and returns an onboarding URL. Admin only.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Stripe Connect account created / onboarding link generated',
+  })
+  async connectStripeForMe(
+    @CurrentUser() user: JwtPayload,
+  ): Promise<{ stripeConnectAccountId: string; onboardingUrl: string }> {
+    return this.usersService.connectStripeAccountForAdmin(user.sub);
+  }
+
   @Post()
   @UseGuards(createRoleGuard([UserRole.ADMIN]))
   @HttpCode(HttpStatus.CREATED)

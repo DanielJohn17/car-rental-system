@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Logger,
   InternalServerErrorException,
+  HttpException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -155,6 +156,11 @@ export class PaymentsService {
       };
     } catch (error) {
       this.logger.error(`Failed to create payment intent: ${error}`);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
       throw new InternalServerErrorException('Failed to create payment intent');
     }
   }
