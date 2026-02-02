@@ -76,7 +76,7 @@ export async function VehiclesBrowser({
         const query = new URLSearchParams();
         if (make) query.set("make", make);
         if (model) query.set("model", model);
-        if (status) query.set("status", status);
+        query.set("status", status || "AVAILABLE");
         if (locationId) query.set("locationId", locationId);
         if (minDailyRate) query.set("minDailyRate", minDailyRate);
         if (maxDailyRate) query.set("maxDailyRate", maxDailyRate);
