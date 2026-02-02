@@ -1,11 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import {
   UnauthorizedException,
   ConflictException,
-  BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { User, UserRole } from './entities/user.entity';
@@ -17,7 +15,6 @@ jest.mock('bcryptjs');
 describe('AuthService', () => {
   let service: AuthService;
   let jwtService: JwtService;
-  let configService: ConfigService;
   let mockUserRepository: any;
 
   const mockAdminUser = {
@@ -70,18 +67,11 @@ describe('AuthService', () => {
             verify: jest.fn(),
           },
         },
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn(),
-          },
-        },
       ],
     }).compile();
 
     service = module.get<AuthService>(AuthService);
     jwtService = module.get<JwtService>(JwtService);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   afterEach(() => {
@@ -100,9 +90,8 @@ describe('AuthService', () => {
       phone: '+251912345678',
     };
 
-    it('should register first admin without token', async () => {
+    it('should register admin', async () => {
       mockUserRepository.findOne.mockResolvedValueOnce(null); // email check
-      mockUserRepository.findOne.mockResolvedValueOnce(null); // admin exists check
       mockUserRepository.create.mockReturnValue({ ...adminRegisterDto });
       mockUserRepository.save.mockResolvedValue(mockAdminUser);
       (bcryptjs.hash as jest.Mock).mockResolvedValue('hashedPassword');
@@ -123,48 +112,17 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw BadRequestException if admin already exists without token', async () => {
+    it('should allow creating another admin when an admin already exists', async () => {
       mockUserRepository.findOne.mockResolvedValueOnce(null); // email check
-      mockUserRepository.findOne.mockResolvedValueOnce(mockAdminUser); // admin exists check
-
-      await expect(service.registerAdmin(adminRegisterDto)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('should allow creating second admin with valid registration token', async () => {
-      const dtoWithToken: AdminRegisterDto = {
-        ...adminRegisterDto,
-        registrationToken: 'valid-token',
-      };
-
-      mockUserRepository.findOne.mockResolvedValueOnce(null); // email check
-      mockUserRepository.findOne.mockResolvedValueOnce(mockAdminUser); // admin exists check
-      mockUserRepository.create.mockReturnValue({ ...dtoWithToken });
+      mockUserRepository.create.mockReturnValue({ ...adminRegisterDto });
       mockUserRepository.save.mockResolvedValue(mockAdminUser);
       (bcryptjs.hash as jest.Mock).mockResolvedValue('hashedPassword');
       (jwtService.sign as jest.Mock).mockReturnValue('test-jwt-token');
-      (configService.get as jest.Mock).mockReturnValue('valid-token');
 
-      const result = await service.registerAdmin(dtoWithToken);
+      const result = await service.registerAdmin(adminRegisterDto);
 
       expect(result).toBeDefined();
       expect(result.accessToken).toBe('test-jwt-token');
-    });
-
-    it('should throw UnauthorizedException with invalid token', async () => {
-      const dtoWithToken: AdminRegisterDto = {
-        ...adminRegisterDto,
-        registrationToken: 'invalid-token',
-      };
-
-      mockUserRepository.findOne.mockResolvedValueOnce(null); // email check
-      mockUserRepository.findOne.mockResolvedValueOnce(mockAdminUser); // admin exists check
-      (configService.get as jest.Mock).mockReturnValue('valid-token');
-
-      await expect(service.registerAdmin(dtoWithToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
     });
   });
 

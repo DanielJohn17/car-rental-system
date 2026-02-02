@@ -5,7 +5,6 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcryptjs from 'bcryptjs';
@@ -18,12 +17,10 @@ export class AuthService {
     @InjectRepository(User)
     private userRepository: Repository<User>,
     private jwtService: JwtService,
-    private configService: ConfigService,
   ) {}
 
   async registerAdmin(adminRegisterDto: AdminRegisterDto) {
-    const { email, password, fullName, phone, registrationToken } =
-      adminRegisterDto;
+    const { email, password, fullName, phone } = adminRegisterDto;
 
     // Check if user already exists
     const existingUser = await this.userRepository.findOne({
@@ -32,27 +29,6 @@ export class AuthService {
 
     if (existingUser) {
       throw new ConflictException('Email already in use');
-    }
-
-    // Validate registration token if provided
-    if (registrationToken) {
-      const expectedToken = this.configService.get<string>(
-        'ADMIN_REGISTRATION_TOKEN',
-      );
-      if (registrationToken !== expectedToken) {
-        throw new UnauthorizedException('Invalid registration token');
-      }
-    }
-
-    // Check if any admin already exists
-    const adminExists = await this.userRepository.findOne({
-      where: { role: UserRole.ADMIN },
-    });
-
-    if (adminExists && !registrationToken) {
-      throw new BadRequestException(
-        'Admin already exists. Use registration token to create another admin.',
-      );
     }
 
     if (password.length < 8) {

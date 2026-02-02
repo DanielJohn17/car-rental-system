@@ -44,9 +44,9 @@ export class AuthController {
   @Post('register/admin')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Register first admin account (initial setup)',
+    summary: 'Register admin (renter) account',
     description:
-      'Register the first admin account without authentication. If admin already exists, provide registration token.',
+      'Register an admin (renter) account without authentication. Admins can later create sales staff accounts.',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -55,9 +55,8 @@ export class AuthController {
   })
   @ApiConflictResponse({ description: 'Email already in use' })
   @ApiBadRequestResponse({
-    description: 'Admin already exists or invalid password',
+    description: 'Invalid password',
   })
-  @ApiUnauthorizedResponse({ description: 'Invalid registration token' })
   async registerAdmin(
     @Body(ValidationPipe) adminRegisterDto: AdminRegisterDto,
   ): Promise<AuthResponseDto> {

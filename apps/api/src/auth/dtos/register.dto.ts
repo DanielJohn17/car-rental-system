@@ -3,9 +3,8 @@ import {
   IsString,
   MinLength,
   IsPhoneNumber,
-  IsOptional,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class AdminRegisterDto {
   @ApiProperty({
@@ -36,14 +35,6 @@ export class AdminRegisterDto {
   })
   @IsPhoneNumber('ET')
   phone: string;
-
-  @ApiPropertyOptional({
-    example: 'admin-registration-token',
-    description: 'Admin registration token (optional, for security)',
-  })
-  @IsOptional()
-  @IsString()
-  registrationToken?: string;
 }
 
 export class StaffRegisterDto {
