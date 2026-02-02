@@ -277,7 +277,7 @@ export default async function AdminDashboardPage() {
                       <Link href={`/admin/vehicles/${v.id}`}>Edit</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href="/admin/vehicles">Manage</Link>
+                      <Link href={`/admin/vehicles/${v.id}`}>Manage</Link>
                     </Button>
                   </div>
                 </CardContent>

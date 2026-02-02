@@ -11,11 +11,24 @@ import {
 } from "@stripe/react-stripe-js";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
+import { CalendarIcon } from "lucide-react";
+import {
+  addMinutes,
+  addMonths,
+  format,
+  isAfter,
+  isBefore,
+  isSameDay,
+  setHours,
+  startOfDay,
+} from "date-fns";
+import type { DateRange } from "react-day-picker";
 
 import { InlineError } from "@/components/inline-error";
 import { PageContainer } from "@/components/page-container";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
   CardContent,
@@ -24,6 +37,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -33,6 +47,7 @@ import {
 } from "@/components/ui/select";
 import { getResponseErrorMessage, toUserErrorMessage } from "@/lib/errors";
 import { useLocations } from "@/lib/queries/locations";
+import { cn } from "@/lib/utils";
 
 type PricingBreakdown = {
   vehicleId: string;
@@ -142,8 +157,7 @@ export default function NewBookingPage() {
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
-  const [startDateTime, setStartDateTime] = useState("");
-  const [endDateTime, setEndDateTime] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [pickupLocationId, setPickupLocationId] = useState("");
   const [returnLocationId, setReturnLocationId] = useState("");
 
@@ -175,8 +189,53 @@ export default function NewBookingPage() {
   }, [locationsQuery.error]);
 
   const canCalculate = useMemo(() => {
-    return Boolean(vehicleId && startDateTime && endDateTime);
-  }, [vehicleId, startDateTime, endDateTime]);
+    return Boolean(vehicleId && dateRange?.from && dateRange?.to);
+  }, [vehicleId, dateRange?.from, dateRange?.to]);
+
+  const dateValidationError = useMemo(() => {
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    if (!from || !to) return null;
+
+    const today = startOfDay(new Date());
+    if (isBefore(startOfDay(from), today)) {
+      return "Start date cannot be in the past";
+    }
+    if (!isAfter(startOfDay(to), startOfDay(from))) {
+      return "End date must be after start date";
+    }
+
+    const maxEnd = addMonths(startOfDay(from), 4);
+    if (isAfter(startOfDay(to), maxEnd)) {
+      return "Rental duration cannot exceed 4 months";
+    }
+
+    return null;
+  }, [dateRange?.from, dateRange?.to]);
+
+  const startDateTime = useMemo(() => {
+    if (!dateRange?.from) return "";
+
+    const now = new Date();
+    const candidate = setHours(startOfDay(dateRange.from), 10);
+    const resolved = isSameDay(dateRange.from, now) && isBefore(candidate, now)
+      ? addMinutes(now, 5)
+      : candidate;
+    return resolved.toISOString();
+  }, [dateRange?.from]);
+
+  const endDateTime = useMemo(() => {
+    if (!dateRange?.to) return "";
+    const candidate = setHours(startOfDay(dateRange.to), 10);
+    return candidate.toISOString();
+  }, [dateRange?.to]);
+
+  useEffect(() => {
+    setPricing(null);
+    setBookingId(null);
+    setClientSecret(null);
+    setPaymentIntentId(null);
+  }, [dateRange?.from, dateRange?.to]);
 
   const pricingMutation = useMutation({
     mutationFn: (input: {
@@ -237,6 +296,11 @@ export default function NewBookingPage() {
 
   async function calculate() {
     setError(null);
+    if (dateValidationError) {
+      setError(dateValidationError);
+      return;
+    }
+
     try {
       await pricingMutation.mutateAsync({
         vehicleId,
@@ -253,6 +317,11 @@ export default function NewBookingPage() {
 
   async function submit() {
     setError(null);
+    if (dateValidationError) {
+      setError(dateValidationError);
+      return;
+    }
+
     if (!pricing) {
       setError("Please calculate pricing first");
       return;
@@ -356,23 +425,54 @@ export default function NewBookingPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="startDateTime">Start date/time (ISO)</Label>
-                    <Input
-                      id="startDateTime"
-                      placeholder="2026-02-01T10:00:00Z"
-                      value={startDateTime}
-                      onChange={(e) => setStartDateTime(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="endDateTime">End date/time (ISO)</Label>
-                    <Input
-                      id="endDateTime"
-                      placeholder="2026-02-05T10:00:00Z"
-                      value={endDateTime}
-                      onChange={(e) => setEndDateTime(e.target.value)}
-                    />
+                  <div className="grid gap-2 sm:col-span-2">
+                    <Label>Rental dates</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !dateRange?.from && "text-muted-foreground",
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateRange?.from ? (
+                            dateRange.to ? (
+                              `${format(dateRange.from, "PPP")} - ${format(dateRange.to, "PPP")}`
+                            ) : (
+                              format(dateRange.from, "PPP")
+                            )
+                          ) : (
+                            <span>Select dates</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="range"
+                          numberOfMonths={2}
+                          selected={dateRange}
+                          onSelect={(range: DateRange | undefined) =>
+                            setDateRange(range)
+                          }
+                          disabled={(date: Date) => {
+                            const day = startOfDay(date);
+                            const today = startOfDay(new Date());
+                            if (isBefore(day, today)) return true;
+                            if (dateRange?.from) {
+                              const from = startOfDay(dateRange.from);
+                              const maxEnd = addMonths(from, 4);
+                              if (isAfter(day, maxEnd)) return true;
+                            }
+                            return false;
+                          }}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <InlineError message={dateValidationError} />
                   </div>
 
                   <div className="grid gap-2">

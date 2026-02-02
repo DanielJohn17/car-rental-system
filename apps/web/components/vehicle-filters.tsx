@@ -16,13 +16,15 @@ export function VehicleFilters({
   defaultValues: {
     make?: string;
     model?: string;
+    status?: string;
     locationId?: string;
     minDailyRate?: string;
     maxDailyRate?: string;
   };
   locations: LocationOption[];
 }) {
-  const { make, model, locationId, minDailyRate, maxDailyRate } = defaultValues;
+  const { make, model, status, locationId, minDailyRate, maxDailyRate } =
+    defaultValues;
 
   return (
     <form
@@ -54,6 +56,23 @@ export function VehicleFilters({
               {l.name}
             </option>
           ))}
+        </select>
+      </div>
+
+      <div className="grid gap-2 md:col-span-2">
+        <Label htmlFor="status">Status</Label>
+        <select
+          id="status"
+          name="status"
+          defaultValue={status ?? ""}
+          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <option value="">Available</option>
+          <option value="AVAILABLE">AVAILABLE</option>
+          <option value="RENTED">RENTED</option>
+          <option value="MAINTENANCE">MAINTENANCE</option>
+          <option value="DAMAGED">DAMAGED</option>
+          <option value="RESERVED">RESERVED</option>
         </select>
       </div>
 

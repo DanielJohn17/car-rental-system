@@ -6,6 +6,7 @@ export default async function Home({
   searchParams?: Promise<{
     make?: string;
     model?: string;
+    status?: string;
     locationId?: string;
     minDailyRate?: string;
     maxDailyRate?: string;

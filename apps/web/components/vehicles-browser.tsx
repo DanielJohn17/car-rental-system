@@ -40,6 +40,7 @@ export async function VehiclesBrowser({
     | {
         make?: string;
         model?: string;
+        status?: string;
         locationId?: string;
         minDailyRate?: string;
         maxDailyRate?: string;
@@ -47,6 +48,7 @@ export async function VehiclesBrowser({
     | Promise<{
         make?: string;
         model?: string;
+        status?: string;
         locationId?: string;
         minDailyRate?: string;
         maxDailyRate?: string;
@@ -56,6 +58,7 @@ export async function VehiclesBrowser({
 
   const make = resolvedSearchParams?.make ?? "";
   const model = resolvedSearchParams?.model ?? "";
+  const status = resolvedSearchParams?.status ?? "";
   const locationId = resolvedSearchParams?.locationId ?? "";
   const minDailyRate = resolvedSearchParams?.minDailyRate ?? "";
   const maxDailyRate = resolvedSearchParams?.maxDailyRate ?? "";
@@ -73,6 +76,7 @@ export async function VehiclesBrowser({
         const query = new URLSearchParams();
         if (make) query.set("make", make);
         if (model) query.set("model", model);
+        if (status) query.set("status", status);
         if (locationId) query.set("locationId", locationId);
         if (minDailyRate) query.set("minDailyRate", minDailyRate);
         if (maxDailyRate) query.set("maxDailyRate", maxDailyRate);
@@ -114,6 +118,7 @@ export async function VehiclesBrowser({
           defaultValues={{
             make,
             model,
+            status,
             locationId,
             minDailyRate,
             maxDailyRate,
