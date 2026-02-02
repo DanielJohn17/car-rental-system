@@ -1,28 +1,15 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Param,
-  Body,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, Post, Body } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiQuery,
-  ApiBody,
   ApiParam,
   ApiResponse,
+  ApiBody,
 } from '@nestjs/swagger';
 import { LocationsService } from './locations.service';
-import { JwtGuard } from '../auth/guards/jwt.guard';
-import { createRoleGuard } from '../auth/guards/role.guard';
-import { UserRole } from '../auth/entities/user.entity';
-import { CreateLocationDto, UpdateLocationDto } from './dtos';
 import { Location } from './entities/location.entity';
+import { CreateLocationDto } from './dtos';
 
 @ApiTags('locations')
 @Controller('locations')
@@ -55,34 +42,10 @@ export class LocationsController {
   }
 
   /**
-   * Get location by ID (PUBLIC)
-   */
-  @Get(':id')
-  @ApiOperation({ summary: 'Get location by ID' })
-  @ApiParam({ name: 'id', description: 'Location UUID' })
-  @ApiResponse({ status: 200, description: 'Location details', type: Location })
-  @ApiResponse({ status: 404, description: 'Location not found' })
-  async findById(@Param('id') id: string): Promise<Location> {
-    return this.locationsService.findById(id);
-  }
-
-  /**
-   * Search locations by name or address (PUBLIC)
-   */
-  @Get('search/:name')
-  @ApiOperation({ summary: 'Search locations by name or address' })
-  @ApiParam({ name: 'name', description: 'Search term (name or address)' })
-  @ApiResponse({ status: 200, description: 'Search results' })
-  async search(@Param('name') name: string): Promise<Location[]> {
-    return this.locationsService.search(name);
-  }
-
-  /**
-   * Create location (ADMIN only)
+   * Create location (PUBLIC - for population only)
    */
   @Post()
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
-  @ApiOperation({ summary: 'Create new location (Admin only)' })
+  @ApiOperation({ summary: 'Create new location (Public for population)' })
   @ApiBody({
     type: CreateLocationDto,
     examples: {
@@ -113,37 +76,26 @@ export class LocationsController {
   }
 
   /**
-   * Update location (ADMIN only)
+   * Get location by ID (PUBLIC)
    */
-  @Put(':id')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
-  @ApiOperation({ summary: 'Update location (Admin only)' })
+  @Get(':id')
+  @ApiOperation({ summary: 'Get location by ID' })
   @ApiParam({ name: 'id', description: 'Location UUID' })
-  @ApiBody({ type: UpdateLocationDto })
-  @ApiResponse({ status: 200, description: 'Location updated', type: Location })
+  @ApiResponse({ status: 200, description: 'Location details', type: Location })
   @ApiResponse({ status: 404, description: 'Location not found' })
-  async update(
-    @Param('id') id: string,
-    @Body() updateLocationDto: UpdateLocationDto,
-  ): Promise<Location> {
-    return this.locationsService.update(id, updateLocationDto);
+  async findById(@Param('id') id: string): Promise<Location> {
+    return this.locationsService.findById(id);
   }
 
   /**
-   * Delete location (ADMIN only)
+   * Search locations by name or address (PUBLIC)
    */
-  @Delete(':id')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
-  @ApiOperation({ summary: 'Delete location (Admin only)' })
-  @ApiParam({ name: 'id', description: 'Location UUID' })
-  @ApiResponse({ status: 200, description: 'Location deleted' })
-  @ApiResponse({
-    status: 400,
-    description: 'Cannot delete location with vehicles',
-  })
-  @ApiResponse({ status: 404, description: 'Location not found' })
-  async delete(@Param('id') id: string): Promise<void> {
-    return this.locationsService.delete(id);
+  @Get('search/:name')
+  @ApiOperation({ summary: 'Search locations by name or address' })
+  @ApiParam({ name: 'name', description: 'Search term (name or address)' })
+  @ApiResponse({ status: 200, description: 'Search results' })
+  async search(@Param('name') name: string): Promise<Location[]> {
+    return this.locationsService.search(name);
   }
 
   /**
