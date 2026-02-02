@@ -9,6 +9,8 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
+import { InlineError } from "../../../../components/inline-error";
+import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
 
 type Location = {
   id: string;
@@ -101,7 +103,7 @@ function CheckoutForm({
       <button type="submit" disabled={!stripe || !elements || loading}>
         Pay deposit
       </button>
-      {error ? <div style={{ color: "crimson" }}>{error}</div> : null}
+      <InlineError message={error} />
     </form>
   );
 }
@@ -175,14 +177,14 @@ export default function NewBookingPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Pricing failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Pricing failed");
+        throw new Error(message);
       }
 
       const data = (await res.json()) as PricingBreakdown;
       setPricing(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Pricing failed");
+      setError(toUserErrorMessage(e, "Pricing failed"));
     } finally {
       setLoading(false);
     }
@@ -220,8 +222,8 @@ export default function NewBookingPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Booking failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Booking failed");
+        throw new Error(message);
       }
 
       const booking = (await res.json()) as Booking;
@@ -238,8 +240,8 @@ export default function NewBookingPage() {
       });
 
       if (!intentRes.ok) {
-        const text = await intentRes.text().catch(() => "");
-        throw new Error(text || `Payment intent failed (${intentRes.status})`);
+        const message = await getResponseErrorMessage(intentRes, "Payment intent failed");
+        throw new Error(message);
       }
 
       const intent = (await intentRes.json()) as PaymentIntentResponse;
@@ -247,7 +249,7 @@ export default function NewBookingPage() {
       setClientSecret(intent.clientSecret);
       setPaymentIntentId(intent.paymentIntentId);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Booking failed");
+      setError(toUserErrorMessage(e, "Booking failed"));
     } finally {
       setLoading(false);
     }
@@ -358,9 +360,7 @@ export default function NewBookingPage() {
             <h2 style={{ fontSize: 18, marginBottom: 12 }}>Pay deposit</h2>
 
             {!stripePromise ? (
-              <div style={{ color: "crimson" }}>
-                Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-              </div>
+              <InlineError message="Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" />
             ) : (
               <Elements
                 stripe={stripePromise}
@@ -378,7 +378,7 @@ export default function NewBookingPage() {
           </div>
         ) : null}
 
-        {error ? <div style={{ color: "crimson" }}>{error}</div> : null}
+        <InlineError message={error} />
       </div>
     </main>
   );

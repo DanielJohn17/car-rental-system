@@ -6,10 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { PageContainer } from "../../../../components/page-container";
 import { SiteHeader } from "../../../../components/site-header";
+import { InlineError } from "../../../../components/inline-error";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
 import { Label } from "../../../../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
+import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
 
 type RegisterBody = {
   email: string;
@@ -51,13 +53,13 @@ export default function AdminRegisterPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Registration failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Registration failed");
+        throw new Error(message);
       }
 
       router.push(next);
     } catch (e2: unknown) {
-      setError(e2 instanceof Error ? e2.message : "Registration failed");
+      setError(toUserErrorMessage(e2, "Registration failed"));
     } finally {
       setLoading(false);
     }
@@ -111,7 +113,7 @@ export default function AdminRegisterPage() {
                 Create account
               </Button>
 
-              {error ? <div className="text-sm text-destructive">{error}</div> : null}
+              <InlineError message={error} />
 
               <div className="text-sm text-muted-foreground">
                 Already have an account? <Link href="/admin/login">Login</Link>

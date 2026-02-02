@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { InlineError } from "../../../../components/inline-error";
+import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
 
 type Staff = {
   id: string;
@@ -42,14 +44,14 @@ export default function AdminUsersPage() {
     try {
       const res = await fetch("/api/admin/users?page=1&limit=50", { cache: "no-store" });
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Failed to load users (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Failed to load users");
+        throw new Error(message);
       }
       const data = (await res.json()) as StaffListResponse;
       setUsers(data.data);
       setTotal(data.total);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load users");
+      setError(toUserErrorMessage(e, "Failed to load users"));
     } finally {
       setLoading(false);
     }
@@ -77,8 +79,8 @@ export default function AdminUsersPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Create failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Create failed");
+        throw new Error(message);
       }
 
       setEmail("");
@@ -88,7 +90,7 @@ export default function AdminUsersPage() {
 
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Create failed");
+      setError(toUserErrorMessage(e, "Create failed"));
     } finally {
       setLoading(false);
     }
@@ -99,12 +101,12 @@ export default function AdminUsersPage() {
     try {
       const res = await fetch(`/api/admin/users/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Delete failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Delete failed");
+        throw new Error(message);
       }
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Delete failed");
+      setError(toUserErrorMessage(e, "Delete failed"));
     }
   }
 
@@ -171,7 +173,7 @@ export default function AdminUsersPage() {
           </button>
         </div>
 
-        {error ? <div style={{ color: "crimson", marginTop: 8 }}>{error}</div> : null}
+        <InlineError message={error} className="mt-2" />
       </section>
 
       <section

@@ -2,6 +2,32 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { InlineError } from "../../../../components/inline-error";
+import { PageContainer } from "../../../../components/page-container";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../../../components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../../../../components/ui/select";
+import { Button } from "../../../../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../../components/ui/card";
+import { Input } from "../../../../components/ui/input";
+import { Label } from "../../../../components/ui/label";
+import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
 
 type Location = {
   id: string;
@@ -97,15 +123,15 @@ export default function AdminVehiclesPage() {
         cache: "no-store",
       });
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Failed to load vehicles (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Failed to load vehicles");
+        throw new Error(message);
       }
 
       const data = (await res.json()) as VehicleListResponse;
       setVehicles(data.data);
       setTotal(data.total);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load vehicles");
+      setError(toUserErrorMessage(e, "Failed to load vehicles"));
     } finally {
       setLoading(false);
     }
@@ -161,8 +187,8 @@ export default function AdminVehiclesPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Create failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Create failed");
+        throw new Error(message);
       }
 
       setMake("");
@@ -176,272 +202,327 @@ export default function AdminVehiclesPage() {
 
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Create failed");
+      setError(toUserErrorMessage(e, "Create failed"));
     } finally {
       setLoading(false);
     }
   }
 
-  async function updateStatus(vehicleId: string, status: string) {
+  async function updateStatus(id: string, status: string) {
     setError(null);
-
     try {
-      const res = await fetch(`/api/admin/vehicles/${vehicleId}/status`, {
+      const res = await fetch(`/api/admin/vehicles/${id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Status update failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Status update failed");
+        throw new Error(message);
       }
-
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Status update failed");
+      setError(toUserErrorMessage(e, "Status update failed"));
     }
   }
 
-  async function deleteVehicle(vehicleId: string) {
+  async function deleteVehicle(id: string) {
     setError(null);
-
     try {
-      const res = await fetch(`/api/admin/vehicles/${vehicleId}`, {
-        method: "DELETE",
-      });
-
+      const res = await fetch(`/api/admin/vehicles/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Delete failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Delete failed");
+        throw new Error(message);
       }
-
       await load();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Delete failed");
+      setError(toUserErrorMessage(e, "Delete failed"));
     }
   }
 
   return (
-    <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h1 style={{ fontSize: 28, marginBottom: 12 }}>Vehicles</h1>
-        <Link href="/admin/dashboard">Back to dashboard</Link>
+    <PageContainer>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-semibold tracking-tight">Vehicles</h1>
+        <Button asChild variant="outline">
+          <Link href="/admin/dashboard">Back to dashboard</Link>
+        </Button>
       </div>
 
-      <div style={{ marginBottom: 16, opacity: 0.85 }}>Total: {total}</div>
+      <div className="mb-4 text-sm text-muted-foreground">
+        Total: {total} vehicles
+      </div>
 
-      <section
-        style={{
-          border: "1px solid #e5e5e5",
-          borderRadius: 8,
-          padding: 12,
-          marginBottom: 16,
-        }}
-      >
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>Create vehicle</h2>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 12,
-          }}
-        >
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Make</span>
-            <input value={make} onChange={(e) => setMake(e.target.value)} />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Model</span>
-            <input value={model} onChange={(e) => setModel(e.target.value)} />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Year</span>
-            <input value={year} onChange={(e) => setYear(e.target.value)} />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>License plate</span>
-            <input
-              value={licensePlate}
-              onChange={(e) => setLicensePlate(e.target.value)}
-            />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>VIN</span>
-            <input value={vin} onChange={(e) => setVin(e.target.value)} />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Color (optional)</span>
-            <input value={color} onChange={(e) => setColor(e.target.value)} />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Fuel type</span>
-            <select
-              value={fuelType}
-              onChange={(e) =>
-                setFuelType(e.target.value as (typeof FUEL_TYPES)[number])
-              }
-            >
-              {FUEL_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Transmission</span>
-            <select
-              value={transmission}
-              onChange={(e) =>
-                setTransmission(
-                  e.target.value as (typeof TRANSMISSIONS)[number],
-                )
-              }
-            >
-              {TRANSMISSIONS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Seats</span>
-            <input value={seats} onChange={(e) => setSeats(e.target.value)} />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Daily rate</span>
-            <input
-              value={dailyRate}
-              onChange={(e) => setDailyRate(e.target.value)}
-            />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Hourly rate (optional)</span>
-            <input
-              value={hourlyRate}
-              onChange={(e) => setHourlyRate(e.target.value)}
-            />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Location</span>
-            <select
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-            >
-              {locations.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Mileage</span>
-            <input
-              value={mileage}
-              onChange={(e) => setMileage(e.target.value)}
-            />
-          </label>
-        </div>
-
-        <div style={{ marginTop: 12, display: "flex", gap: 12 }}>
-          <button
-            type="button"
-            onClick={createVehicle}
-            disabled={!canCreate || loading}
-          >
-            Create
-          </button>
-          <button type="button" onClick={load} disabled={loading}>
-            Refresh
-          </button>
-        </div>
-
-        {error ? <div style={{ color: "crimson", marginTop: 8 }}>{error}</div> : null}
-      </section>
-
-      <section
-        style={{
-          border: "1px solid #e5e5e5",
-          borderRadius: 8,
-          padding: 12,
-        }}
-      >
-        <h2 style={{ fontSize: 18, marginBottom: 12 }}>Fleet</h2>
-
-        <div style={{ display: "grid", gap: 10 }}>
-          {vehicles.map((v) => (
-            <div
-              key={v.id}
-              style={{
-                border: "1px solid #eee",
-                borderRadius: 8,
-                padding: 12,
-                display: "grid",
-                gap: 8,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong>
-                  {v.make} {v.model} ({v.year})
-                </strong>
-                <span style={{ opacity: 0.85 }}>${v.dailyRate}/day</span>
-              </div>
-
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <span style={{ opacity: 0.85 }}>ID: {v.id}</span>
-                <span style={{ opacity: 0.85 }}>Plate: {v.licensePlate}</span>
-                <span style={{ opacity: 0.85 }}>VIN: {v.vin}</span>
-              </div>
-
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <span>Status</span>
-                  <select
-                    value={v.status}
-                    onChange={(e) => updateStatus(v.id, e.target.value)}
-                  >
-                    {VEHICLE_STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <Link href={`/admin/vehicles/${v.id}`}>Edit</Link>
-
-                <button
-                  type="button"
-                  onClick={() => deleteVehicle(v.id)}
-                  style={{ color: "crimson" }}
-                >
-                  Delete
-                </button>
-              </div>
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Create vehicle</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-2">
+              <Label htmlFor="make">Make</Label>
+              <Input
+                id="make"
+                value={make}
+                onChange={(e) => setMake(e.target.value)}
+              />
             </div>
-          ))}
 
-          {vehicles.length === 0 ? (
-            <div style={{ opacity: 0.75 }}>No vehicles found.</div>
-          ) : null}
-        </div>
-      </section>
-    </main>
+            <div className="grid gap-2">
+              <Label htmlFor="model">Model</Label>
+              <Input
+                id="model"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="year">Year</Label>
+              <Input
+                id="year"
+                type="number"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="licensePlate">License plate</Label>
+              <Input
+                id="licensePlate"
+                value={licensePlate}
+                onChange={(e) => setLicensePlate(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="vin">VIN</Label>
+              <Input
+                id="vin"
+                value={vin}
+                onChange={(e) => setVin(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="color">Color (optional)</Label>
+              <Input
+                id="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Fuel type</Label>
+              <Select
+                value={fuelType}
+                onValueChange={(value: string) =>
+                  setFuelType(value as (typeof FUEL_TYPES)[number])
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FUEL_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Transmission</Label>
+              <Select
+                value={transmission}
+                onValueChange={(value: string) =>
+                  setTransmission(value as (typeof TRANSMISSIONS)[number])
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TRANSMISSIONS.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="seats">Seats</Label>
+              <Input
+                id="seats"
+                type="number"
+                value={seats}
+                onChange={(e) => setSeats(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="dailyRate">Daily rate</Label>
+              <Input
+                id="dailyRate"
+                type="number"
+                value={dailyRate}
+                onChange={(e) => setDailyRate(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="hourlyRate">Hourly rate (optional)</Label>
+              <Input
+                id="hourlyRate"
+                type="number"
+                value={hourlyRate}
+                onChange={(e) => setHourlyRate(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Location</Label>
+              <Select
+                value={locationId}
+                onValueChange={(value: string) => setLocationId(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="mileage">Mileage</Label>
+              <Input
+                id="mileage"
+                type="number"
+                value={mileage}
+                onChange={(e) => setMileage(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 flex gap-2">
+            <Button
+              type="button"
+              onClick={createVehicle}
+              disabled={!canCreate || loading}
+            >
+              Create Vehicle
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={load}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+          </div>
+
+          <InlineError message={error} className="mt-4" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Fleet</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {vehicles.map((v) => (
+              <Card key={v.id}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold">
+                        {v.make} {v.model} ({v.year})
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        ${v.dailyRate}/day • {v.status}
+                      </p>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          Actions
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/admin/vehicles/${v.id}`}>
+                            Edit Vehicle
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => deleteVehicle(v.id)}
+                          className="text-destructive"
+                        >
+                          Delete Vehicle
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 gap-2 md:grid-cols-3">
+                    <div className="text-sm">
+                      <span className="font-medium">ID:</span> {v.id}
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">Plate:</span> {v.licensePlate}
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">VIN:</span> {v.vin}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-4">
+                    <div className="grid gap-2">
+                      <Label>Status</Label>
+                      <Select
+                        value={v.status}
+                        onValueChange={(value: string) => updateStatus(v.id, value)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VEHICLE_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            {vehicles.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                No vehicles found.
+              </div>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+    </PageContainer>
   );
 }

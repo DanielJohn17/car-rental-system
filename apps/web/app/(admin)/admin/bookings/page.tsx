@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { InlineError } from "../../../../components/inline-error";
+import { getResponseErrorMessage, toUserErrorMessage } from "../../../../lib/errors";
 
 type Booking = {
   id: string;
@@ -39,13 +41,13 @@ export default function AdminBookingsPage() {
     try {
       const res = await fetch("/api/admin/bookings/pending", { cache: "no-store" });
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Failed to load bookings (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Failed to load bookings");
+        throw new Error(message);
       }
       const data = (await res.json()) as Booking[];
       setBookings(data);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load bookings");
+      setError(toUserErrorMessage(e, "Failed to load bookings"));
     } finally {
       setLoading(false);
     }
@@ -64,12 +66,12 @@ export default function AdminBookingsPage() {
         body: JSON.stringify({ notes: "Approved" }),
       });
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Approve failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Approve failed");
+        throw new Error(message);
       }
       await loadPending();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Approve failed");
+      setError(toUserErrorMessage(e, "Approve failed"));
     }
   }
 
@@ -82,12 +84,12 @@ export default function AdminBookingsPage() {
         body: JSON.stringify({ notes: "Rejected" }),
       });
       if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Reject failed (${res.status})`);
+        const message = await getResponseErrorMessage(res, "Reject failed");
+        throw new Error(message);
       }
       await loadPending();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Reject failed");
+      setError(toUserErrorMessage(e, "Reject failed"));
     }
   }
 
@@ -104,7 +106,7 @@ export default function AdminBookingsPage() {
         </button>
       </div>
 
-      {error ? <div style={{ color: "crimson", marginBottom: 12 }}>{error}</div> : null}
+      <InlineError message={error} className="mb-3" />
 
       <div style={{ display: "grid", gap: 10 }}>
         {bookings.map((b) => (

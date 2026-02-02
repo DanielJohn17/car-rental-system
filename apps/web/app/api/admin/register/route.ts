@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { getResponseErrorMessage } from "../../../../lib/errors";
+
 type RegisterBody = {
   email: string;
   password: string;
@@ -32,8 +34,11 @@ export async function POST(request: Request) {
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    return new NextResponse(text || "Registration failed", { status: res.status });
+    const message = await getResponseErrorMessage(res, "Registration failed");
+    return new NextResponse(message, {
+      status: res.status,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 
   const data = (await res.json()) as AuthResponse;

@@ -1,6 +1,8 @@
 import { apiFetch } from "../lib/api";
+import { toUserErrorMessage } from "../lib/errors";
 import { PageContainer } from "./page-container";
 import { SiteHeader } from "./site-header";
+import { InlineError } from "./inline-error";
 import { VehicleCard, type VehicleSummary } from "./vehicle-card";
 import { VehicleFilters, type LocationOption } from "./vehicle-filters";
 
@@ -52,23 +54,34 @@ export async function VehiclesBrowser({
   const minDailyRate = resolvedSearchParams?.minDailyRate ?? "";
   const maxDailyRate = resolvedSearchParams?.maxDailyRate ?? "";
 
-  const [locations, vehicles] = await Promise.all([
-    apiFetch<LocationListResponse | Location[]>("/locations?limit=100&offset=0"),
-    (async () => {
-      const query = new URLSearchParams();
-      if (make) query.set("make", make);
-      if (model) query.set("model", model);
-      if (locationId) query.set("locationId", locationId);
-      if (minDailyRate) query.set("minDailyRate", minDailyRate);
-      if (maxDailyRate) query.set("maxDailyRate", maxDailyRate);
-      query.set("limit", "20");
-      query.set("offset", "0");
+  let locationsList: Location[] = [];
+  let vehicles: VehicleSearchResponse = { data: [], total: 0 };
+  let errorMessage: string | null = null;
 
-      return apiFetch<VehicleSearchResponse>(`/vehicles/search?${query.toString()}`);
-    })(),
-  ]);
+  try {
+    const [locations, v] = await Promise.all([
+      apiFetch<LocationListResponse | Location[]>("/locations?limit=100&offset=0"),
+      (async () => {
+        const query = new URLSearchParams();
+        if (make) query.set("make", make);
+        if (model) query.set("model", model);
+        if (locationId) query.set("locationId", locationId);
+        if (minDailyRate) query.set("minDailyRate", minDailyRate);
+        if (maxDailyRate) query.set("maxDailyRate", maxDailyRate);
+        query.set("limit", "20");
+        query.set("offset", "0");
 
-  const locationsList = Array.isArray(locations) ? locations : locations.data;
+        return apiFetch<VehicleSearchResponse>(
+          `/vehicles/search?${query.toString()}`,
+        );
+      })(),
+    ]);
+
+    locationsList = Array.isArray(locations) ? locations : locations.data;
+    vehicles = v;
+  } catch (e: unknown) {
+    errorMessage = toUserErrorMessage(e, "Failed to load vehicles");
+  }
 
   const locationOptions: LocationOption[] = locationsList.map((l) => ({
     id: l.id,
@@ -83,6 +96,8 @@ export async function VehiclesBrowser({
           <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
           {subtitle ? <p className="mt-2 text-muted-foreground">{subtitle}</p> : null}
         </div>
+
+        <InlineError message={errorMessage} className="mb-4" />
 
         <VehicleFilters
           action={action}
