@@ -9,6 +9,11 @@ type Location = {
   address: string;
 };
 
+type LocationListResponse = {
+  data: Location[];
+  total: number;
+};
+
 type Vehicle = {
   id: string;
   make: string;
@@ -112,7 +117,8 @@ export default function AdminVehiclesPage() {
         cache: "no-store",
       });
       if (!res.ok) return;
-      const data = (await res.json()) as Location[];
+      const raw = (await res.json()) as LocationListResponse | Location[];
+      const data = Array.isArray(raw) ? raw : raw.data;
       setLocations(data);
       const first = data[0];
       if (first) {

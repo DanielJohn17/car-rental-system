@@ -2,6 +2,9 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
+import { PageContainer } from "../../../../components/page-container";
+import { Button } from "../../../../components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
 
 type DashboardOverview = {
   pendingBookings: number;
@@ -23,33 +26,41 @@ export default async function AdminDashboardPage() {
   });
 
   return (
-    <main style={{ padding: 24, maxWidth: 960, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h1 style={{ fontSize: 28, marginBottom: 12 }}>Dashboard</h1>
+    <PageContainer>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <form action="/api/admin/logout" method="post">
-          <button type="submit">Logout</button>
+          <Button type="submit" variant="secondary">
+            Logout
+          </Button>
         </form>
       </div>
 
-      <pre
-        style={{
-          border: "1px solid #e5e5e5",
-          borderRadius: 8,
-          padding: 12,
-          overflowX: "auto",
-        }}
-      >
-        {JSON.stringify(overview, null, 2)}
-      </pre>
+      <Card>
+        <CardHeader>
+          <CardTitle>Overview</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <pre className="max-w-full overflow-x-auto rounded-md border bg-muted p-4 text-sm">
+            {JSON.stringify(overview, null, 2)}
+          </pre>
+        </CardContent>
+      </Card>
 
-      <div style={{ marginTop: 16 }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Button asChild variant="outline">
           <Link href="/admin/vehicles">Manage vehicles</Link>
+        </Button>
+        <Button asChild variant="outline">
           <Link href="/admin/bookings">Pending bookings</Link>
+        </Button>
+        <Button asChild variant="outline">
           <Link href="/admin/users">Manage users</Link>
+        </Button>
+        <Button asChild variant="outline">
           <Link href="/vehicles">Public vehicles</Link>
-        </div>
+        </Button>
       </div>
-    </main>
+    </PageContainer>
   );
 }

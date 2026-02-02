@@ -16,6 +16,11 @@ type Location = {
   address: string;
 };
 
+type LocationListResponse = {
+  data: Location[];
+  total: number;
+};
+
 type PricingBreakdown = {
   vehicleId: string;
   startDate: string;
@@ -130,8 +135,9 @@ export default function NewBookingPage() {
         if (!r.ok) throw new Error("Failed to load locations");
         return r.json();
       })
-      .then((data: Location[]) => {
+      .then((raw: LocationListResponse | Location[]) => {
         if (cancelled) return;
+        const data = Array.isArray(raw) ? raw : raw.data;
         setLocations(data);
         const first = data[0];
         if (first) {
