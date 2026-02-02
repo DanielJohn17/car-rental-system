@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "./ui/card";
 import { Button } from "./ui/button";
+import { VehicleImagePlaceholder } from "./image-placeholder";
 
 export type VehicleSummary = {
   id: string;
@@ -26,6 +27,12 @@ export function VehicleCard({ vehicle }: { vehicle: VehicleSummary }) {
   return (
     <Card>
       <CardHeader>
+        <VehicleImagePlaceholder 
+          vehicle={vehicle} 
+          className="w-full h-48 mb-4"
+          width={400}
+          height={300}
+        />
         <CardTitle>
           {vehicle.make} {vehicle.model} ({vehicle.year})
         </CardTitle>

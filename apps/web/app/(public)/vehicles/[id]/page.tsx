@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../../../../components/ui/card";
+import { VehicleImagePlaceholder } from "../../../../components/image-placeholder";
 
 type Vehicle = {
   id: string;
@@ -78,7 +79,14 @@ export default async function VehicleDetailPage({
             </div>
           </CardHeader>
 
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-4">
+            <VehicleImagePlaceholder 
+              vehicle={vehicle} 
+              className="w-full h-64 mb-4"
+              width={600}
+              height={400}
+            />
+            
             <div className="grid gap-2 sm:grid-cols-2">
               <div className="text-sm">
                 <span className="text-muted-foreground">Fuel:</span>{" "}
