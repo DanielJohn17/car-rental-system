@@ -1,135 +1,183 @@
-# Turborepo starter
+# Car Rental System
 
-This Turborepo starter is maintained by the Turborepo core team.
+Monorepo containing:
 
-## Using this example
+- **API**: NestJS + TypeORM + Postgres (`apps/api`)
+- **Web**: Next.js + Tailwind (`apps/web`)
 
-Run the following command:
+For a short “just run it” guide, also see `STARTUP.md`.
 
-```sh
-npx create-turbo@latest
+## Prerequisites
+
+- Node.js **18+**
+- `pnpm`
+- PostgreSQL (local install or Docker)
+
+## Install
+
+From repo root:
+
+```bash
+pnpm install
 ```
 
-## What's inside?
+## Environment setup
 
-This Turborepo includes the following packages/apps:
+This project uses two env files in development:
 
-### Apps and Packages
+- `apps/api/.env` (NestJS API)
+- `apps/web/.env.local` (Next.js web)
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+### 1) Backend (`apps/api/.env`)
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+Create `apps/api/.env`:
 
-### Utilities
+```env
+# Database
+# Either DATABASE_URL or DB_CONNECTION_STRING can be used
+DATABASE_URL=postgresql://username:password@localhost:5432/car_rental
+# DB_CONNECTION_STRING=postgresql://username:password@localhost:5432/car_rental
 
-This Turborepo has some additional tools already setup for you:
+# Auth
+JWT_SECRET=replace_me_with_a_long_random_string
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+# Public web URL (used to build Stripe success/cancel URLs)
+WEB_APP_URL=http://localhost:3000
 
-### Build
+# Payments
+COMMISSION_PERCENTAGE=10
 
-To build all apps and packages, run the following command:
+# Stripe (optional; required for payment flows)
+STRIPE_API_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_THIN_WEBHOOK_SECRET=whsec_...
 
-```
-cd my-turborepo
+# Stripe (optional; only for Connect demo / subscriptions)
+STRIPE_ADMIN_ACCOUNT_ID=
+STRIPE_STORE_APP_FEE_CENTS=123
+STRIPE_SUBSCRIPTION_PRICE_ID=price_...
 
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
-```
-
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+# Email (optional)
+RESEND_API_KEY=
+EMAIL_FROM=noreply@carrental.com
 ```
 
-### Develop
+Notes:
 
-To develop all apps and packages, run the following command:
+- **Use `localhost`** for local development. If you point this to a remote IP/host that is not reachable, the API will fail to start.
+- The API reads env from `apps/api/.env` first (and falls back to a root `.env` if you have one).
 
-```
-cd my-turborepo
+Minimal backend env (just to boot locally):
 
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/car_rental
+JWT_SECRET=dev_secret
+WEB_APP_URL=http://localhost:3000
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### 2) Frontend (`apps/web/.env.local`)
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
+Create `apps/web/.env.local`:
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-```
+```env
+# Backend API base URL
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
 
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+# Cloudinary (optional; required for image upload UI)
+NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your_upload_preset
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+Minimal web env (works without Cloudinary uploads):
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
 ```
 
-## Useful Links
+## Database setup
 
-Learn more about the power of Turborepo:
+### Option A: Local Postgres
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+Create a database named `car_rental` and update `DATABASE_URL` accordingly.
+
+### Option B: Docker Postgres
+
+```bash
+docker run --name car-rental-postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_DB=car_rental \
+  -p 5432:5432 \
+  -d postgres:16
+```
+
+Then set:
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/car_rental
+```
+
+## Run (development)
+
+### Option A: Run services separately
+
+API:
+
+```bash
+pnpm -C apps/api dev
+```
+
+Web:
+
+```bash
+pnpm -C apps/web dev
+```
+
+### Option B: Run everything with Turbo
+
+```bash
+pnpm dev
+```
+
+## URLs
+
+- Web: `http://localhost:3000`
+- API: `http://localhost:5000`
+- API docs (Swagger): `http://localhost:5000/api/docs`
+
+## Useful commands
+
+```bash
+# Web
+pnpm -C apps/web check-types
+pnpm -C apps/web build
+
+# API
+pnpm -C apps/api build
+pnpm -C apps/api start:prod
+```
+
+## Troubleshooting
+
+### API won’t start / DB connection errors (`ETIMEDOUT`, `ECONNREFUSED`)
+
+Check:
+
+- `apps/api/.env` has a correct `DATABASE_URL` (or `DB_CONNECTION_STRING`).
+- Postgres is running and reachable from the machine running the API.
+- The host/port in the URL are correct (for local dev: `localhost:5432`).
+
+### Web can’t reach API
+
+Check:
+
+- API is running on port `5000`
+- `apps/web/.env.local` has `NEXT_PUBLIC_API_BASE_URL=http://localhost:5000`
+
+### Image upload doesn’t work
+
+Cloudinary variables must be set in `apps/web/.env.local`:
+
+- `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
+- `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`
+
