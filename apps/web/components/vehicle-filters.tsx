@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import { format, isAfter, isBefore, startOfDay } from "date-fns";
 import type { DateRange } from "react-day-picker";
@@ -21,6 +21,9 @@ export function VehicleFilters({
   action,
   defaultValues,
   locations,
+  variant = "bar",
+  idPrefix,
+  className,
 }: {
   action: string;
   defaultValues: {
@@ -32,8 +35,16 @@ export function VehicleFilters({
     endDate?: string;
   };
   locations: LocationOption[];
+  variant?: "bar" | "sidebar";
+  idPrefix?: string;
+  className?: string;
 }) {
   const { make, model, status, locationId, startDate, endDate } = defaultValues;
+
+  const makeId = `${idPrefix ?? ""}make`;
+  const modelId = `${idPrefix ?? ""}model`;
+  const locationIdId = `${idPrefix ?? ""}locationId`;
+  const statusId = `${idPrefix ?? ""}status`;
 
   const initialRange = useMemo<DateRange | undefined>(() => {
     const from = startDate ? new Date(startDate) : undefined;
@@ -53,6 +64,18 @@ export function VehicleFilters({
   const [dateRange, setDateRange] = useState<DateRange | undefined>(
     initialRange,
   );
+
+  const [calendarMonths, setCalendarMonths] = useState(1);
+
+  useEffect(() => {
+    const update = () => {
+      setCalendarMonths(window.innerWidth >= 768 ? 2 : 1);
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   const dateValidationError = useMemo(() => {
     const from = dateRange?.from;
@@ -82,22 +105,26 @@ export function VehicleFilters({
     <form
       action={action}
       method="get"
-      className="grid gap-4 rounded-lg border bg-card p-4 md:grid-cols-6 md:items-end"
+      className={cn(
+        "grid gap-4 rounded-lg border bg-card p-4",
+        variant === "bar" && "md:grid-cols-6 md:items-end",
+        className,
+      )}
     >
-      <div className="grid gap-2 md:col-span-2">
-        <Label htmlFor="make">Make</Label>
-        <Input id="make" name="make" defaultValue={make ?? ""} />
+      <div className={cn("grid gap-2", variant === "bar" && "md:col-span-2")}>
+        <Label htmlFor={makeId}>Make</Label>
+        <Input id={makeId} name="make" defaultValue={make ?? ""} />
       </div>
 
-      <div className="grid gap-2 md:col-span-2">
-        <Label htmlFor="model">Model</Label>
-        <Input id="model" name="model" defaultValue={model ?? ""} />
+      <div className={cn("grid gap-2", variant === "bar" && "md:col-span-2")}>
+        <Label htmlFor={modelId}>Model</Label>
+        <Input id={modelId} name="model" defaultValue={model ?? ""} />
       </div>
 
-      <div className="grid gap-2 md:col-span-2">
-        <Label htmlFor="locationId">Location</Label>
+      <div className={cn("grid gap-2", variant === "bar" && "md:col-span-2")}>
+        <Label htmlFor={locationIdId}>Location</Label>
         <select
-          id="locationId"
+          id={locationIdId}
           name="locationId"
           defaultValue={locationId ?? ""}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -111,10 +138,10 @@ export function VehicleFilters({
         </select>
       </div>
 
-      <div className="grid gap-2 md:col-span-2">
-        <Label htmlFor="status">Status</Label>
+      <div className={cn("grid gap-2", variant === "bar" && "md:col-span-2")}>
+        <Label htmlFor={statusId}>Status</Label>
         <select
-          id="status"
+          id={statusId}
           name="status"
           defaultValue={status ?? ""}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -128,7 +155,7 @@ export function VehicleFilters({
         </select>
       </div>
 
-      <div className="grid gap-2 md:col-span-2">
+      <div className={cn("grid gap-2", variant === "bar" && "md:col-span-2")}>
         <Label>Rental dates</Label>
         <input type="hidden" name="startDate" value={startDateValue} />
         <input type="hidden" name="endDate" value={endDateValue} />
@@ -157,7 +184,7 @@ export function VehicleFilters({
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="range"
-              numberOfMonths={2}
+              numberOfMonths={calendarMonths}
               selected={dateRange}
               onSelect={(range: DateRange | undefined) => setDateRange(range)}
               disabled={(date: Date) => {
@@ -174,7 +201,7 @@ export function VehicleFilters({
         ) : null}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className={cn("flex items-center gap-2", variant === "bar" && "md:col-span-2")}>
         <Button type="submit" className="w-full">
           Search
         </Button>

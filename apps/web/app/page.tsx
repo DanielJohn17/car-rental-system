@@ -15,8 +15,7 @@ export default async function Home({
   return (
     <VehiclesBrowser
       action="/"
-      title="Find your next ride"
-      subtitle="Browse available vehicles and request a booking in minutes."
+      title="Inventory"
       searchParams={searchParams}
     />
   );

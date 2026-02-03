@@ -133,61 +133,104 @@ export async function VehiclesBrowser({
 
   return (
     <div>
-      <SiteHeader />
-      <PageContainer>
-        <div className="mb-6">
-          <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-          {subtitle ? (
-            <p className="mt-2 text-muted-foreground">{subtitle}</p>
-          ) : null}
-        </div>
+      <SiteHeader variant="inventory" showAdminCtas={false} />
+      <div className="bg-muted/30">
+        <PageContainer>
+          <div className="mb-6">
+            <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
+            {subtitle ? (
+              <p className="mt-2 text-muted-foreground">{subtitle}</p>
+            ) : null}
+          </div>
 
-        <InlineError message={errorMessage} className="mb-4" />
+          <InlineError message={errorMessage} className="mb-4" />
 
-        <VehicleFilters
-          action={action}
-          defaultValues={{
-            make,
-            model,
-            status,
-            locationId,
-            startDate,
-            endDate,
-          }}
-          locations={locationOptions}
-        />
+          <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
+            <div className="hidden lg:block lg:sticky lg:top-6">
+              <VehicleFilters
+                action={action}
+                variant="sidebar"
+                idPrefix="desktop-"
+                defaultValues={{
+                  make,
+                  model,
+                  status,
+                  locationId,
+                  startDate,
+                  endDate,
+                }}
+                locations={locationOptions}
+              />
+            </div>
 
-        <div className="mt-6 text-sm text-muted-foreground">
-          Total: {vehicles.total}
-        </div>
-
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {vehicles.data.map((v) => (
-            <VehicleCard key={v.id} vehicle={v} />
-          ))}
-        </div>
-
-        {vehicles.data.length === 0 ? (
-          <Card className="mt-6">
-            <CardContent className="py-10">
-              <div className="text-center">
-                <div className="text-lg font-medium">No vehicles available</div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Try adjusting your filters or selecting another location.
-                </p>
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
-                  <Button asChild variant="outline">
-                    <Link href={action}>Reset filters</Link>
-                  </Button>
-                  <Button asChild>
-                    <Link href="/vehicles">Browse all vehicles</Link>
-                  </Button>
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm text-muted-foreground">
+                  Total: {vehicles.total}
                 </div>
+
+                <div className="lg:hidden" />
               </div>
-            </CardContent>
-          </Card>
-        ) : null}
-      </PageContainer>
+
+              <details className="group lg:hidden mt-3 rounded-lg border bg-card">
+                <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-medium">
+                  <span>Filters</span>
+                  <span className="text-muted-foreground">
+                    <span className="group-open:hidden">Tap to open</span>
+                    <span className="hidden group-open:inline">Tap to close</span>
+                  </span>
+                </summary>
+                <div className="px-4 pb-4">
+                  <VehicleFilters
+                    action={action}
+                    variant="sidebar"
+                    idPrefix="mobile-"
+                    className="border-0 bg-transparent p-0"
+                    defaultValues={{
+                      make,
+                      model,
+                      status,
+                      locationId,
+                      startDate,
+                      endDate,
+                    }}
+                    locations={locationOptions}
+                  />
+                </div>
+              </details>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {vehicles.data.map((v) => (
+                  <VehicleCard key={v.id} vehicle={v} />
+                ))}
+              </div>
+
+              {vehicles.data.length === 0 ? (
+                <Card className="mt-6">
+                  <CardContent className="py-10">
+                    <div className="text-center">
+                      <div className="text-lg font-medium">
+                        No vehicles available
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Try adjusting your filters or selecting another location.
+                      </p>
+                      <div className="mt-4 flex flex-wrap justify-center gap-2">
+                        <Button asChild variant="outline">
+                          <Link href={action}>Reset filters</Link>
+                        </Button>
+                        <Button asChild>
+                          <Link href="/vehicles">Browse all vehicles</Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
+          </div>
+        </PageContainer>
+      </div>
     </div>
   );
 }

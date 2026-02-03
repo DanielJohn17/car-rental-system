@@ -26,29 +26,35 @@ export type VehicleSummary = {
 
 export function VehicleCard({ vehicle }: { vehicle: VehicleSummary }) {
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden rounded-xl border-border/60 bg-card shadow-sm">
+      <CardHeader className="space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="text-base font-semibold tracking-tight">
+              {vehicle.make} {vehicle.model}
+            </CardTitle>
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {vehicle.year}
+              {vehicle.location ? ` • ${vehicle.location.name}` : ""}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-semibold">${vehicle.dailyRate}</div>
+            <div className="text-xs text-muted-foreground">per day</div>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="pt-0">
         <VehicleImagePlaceholder
           vehicle={vehicle}
-          className="w-full h-48 mb-4"
-          width={400}
-          height={300}
+          className="h-44 w-full"
+          width={520}
+          height={360}
         />
-        <CardTitle>
-          {vehicle.make} {vehicle.model} ({vehicle.year})
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <div className="text-sm text-muted-foreground">
-          ${vehicle.dailyRate}/day
-        </div>
-        {vehicle.location ? (
-          <div className="text-sm text-muted-foreground">
-            {vehicle.location.name} — {vehicle.location.address}
-          </div>
-        ) : null}
       </CardContent>
-      <CardFooter className="justify-between">
+
+      <CardFooter className="flex items-center justify-between">
         <Button asChild variant="link" className="px-0">
           <Link href={`/vehicles/${vehicle.id}`}>View details</Link>
         </Button>
