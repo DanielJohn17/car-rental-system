@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Car, User } from "lucide-react";
 
@@ -25,6 +25,22 @@ export function ImagePlaceholder({
 }: ImagePlaceholderProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    if (!src) return;
+    setImageError(false);
+    setImageLoading(true);
+  }, [src]);
+
+  useEffect(() => {
+    if (!src) return;
+    const img = imgRef.current;
+    if (!img) return;
+    if (img.complete && img.naturalWidth > 0) {
+      setImageLoading(false);
+    }
+  }, [src]);
 
   const handleImageError = () => {
     setImageError(true);
@@ -82,16 +98,18 @@ export function ImagePlaceholder({
         </div>
       )}
       <img
+        ref={imgRef}
         src={src}
         alt={alt}
         width={width}
         height={height}
         className={cn(
-          "object-cover transition-opacity duration-300",
+          "h-full w-full object-cover transition-opacity duration-300",
           imageLoading ? "opacity-0" : "opacity-100",
         )}
         onError={handleImageError}
         onLoad={handleImageLoad}
+        loading="lazy"
       />
     </div>
   );
@@ -113,7 +131,23 @@ export function VehicleImagePlaceholder({
   width?: number;
   height?: number;
 }) {
-  const primaryImage = vehicle?.images?.[0] || null;
+  const primaryImage = useMemo(() => {
+    const images = vehicle?.images ?? [];
+    const valid = images.find((u) => {
+      if (!u) return false;
+      const trimmed = u.trim();
+      if (!trimmed) return false;
+      if (trimmed.startsWith("blob:")) return false;
+      if (trimmed.startsWith("data:")) return false;
+      return (
+        trimmed.startsWith("http://") ||
+        trimmed.startsWith("https://") ||
+        trimmed.startsWith("//")
+      );
+    });
+
+    return valid ?? null;
+  }, [vehicle?.images]);
 
   return (
     <ImagePlaceholder

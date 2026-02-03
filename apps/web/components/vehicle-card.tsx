@@ -16,6 +16,7 @@ export type VehicleSummary = {
   model: string;
   year: number;
   dailyRate: number;
+  images?: string[] | null;
   location?: {
     id: string;
     name: string;
