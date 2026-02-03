@@ -18,7 +18,11 @@ import { DamageReport } from '../dashboard/entities/damage-report.entity';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres' as const,
-        url: configService.get<string>('DB_CONNECTION_STRING'),
+        url:
+          configService.get<string>('DB_CONNECTION_STRING') ??
+          configService.get<string>('DATABASE_URL'),
+        retryAttempts: 1,
+        retryDelay: 0,
         entities: [
           User,
           CustomerProfile,
@@ -30,6 +34,10 @@ import { DamageReport } from '../dashboard/entities/damage-report.entity';
           DamageReport,
         ],
         synchronize: configService.get<string>('NODE_ENV') !== 'production',
+        extra: {
+          connectionTimeoutMillis: 8000,
+          statement_timeout: 8000,
+        },
         // logging: configService.get<string>('NODE_ENV') === 'development',
       }),
     }),
