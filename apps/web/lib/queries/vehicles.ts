@@ -18,6 +18,7 @@ export type Vehicle = {
   locationId: string;
   status: string;
   mileage: number;
+  images?: string[] | null;
   createdAt: string;
 };
 

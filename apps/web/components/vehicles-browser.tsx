@@ -17,6 +17,10 @@ type VehicleSearchResponse = {
   total: number;
 };
 
+type VehicleEntity = VehicleSummary & {
+  locationId?: string;
+};
+
 type Location = {
   id: string;
   name: string;
@@ -42,16 +46,16 @@ export async function VehiclesBrowser({
         model?: string;
         status?: string;
         locationId?: string;
-        minDailyRate?: string;
-        maxDailyRate?: string;
+        startDate?: string;
+        endDate?: string;
       }
     | Promise<{
         make?: string;
         model?: string;
         status?: string;
         locationId?: string;
-        minDailyRate?: string;
-        maxDailyRate?: string;
+        startDate?: string;
+        endDate?: string;
       }>;
 }) {
   const resolvedSearchParams = await searchParams;
@@ -60,8 +64,8 @@ export async function VehiclesBrowser({
   const model = resolvedSearchParams?.model ?? "";
   const status = resolvedSearchParams?.status ?? "";
   const locationId = resolvedSearchParams?.locationId ?? "";
-  const minDailyRate = resolvedSearchParams?.minDailyRate ?? "";
-  const maxDailyRate = resolvedSearchParams?.maxDailyRate ?? "";
+  const startDate = resolvedSearchParams?.startDate ?? "";
+  const endDate = resolvedSearchParams?.endDate ?? "";
 
   let locationsList: Location[] = [];
   let vehicles: VehicleSearchResponse = { data: [], total: 0 };
@@ -73,13 +77,38 @@ export async function VehiclesBrowser({
         "/locations?limit=100&offset=0",
       ),
       (async () => {
+        const hasDateRange = Boolean(startDate && endDate);
+
+        if (hasDateRange) {
+          const query = new URLSearchParams();
+          query.set("startDate", startDate);
+          query.set("endDate", endDate);
+          if (locationId) query.set("locationId", locationId);
+
+          const available = await apiFetch<VehicleEntity[]>(
+            `/vehicles/available/search?${query.toString()}`,
+          );
+
+          const makeLc = make.trim().toLowerCase();
+          const modelLc = model.trim().toLowerCase();
+
+          const filtered = available.filter((veh) => {
+            if (makeLc && !veh.make.toLowerCase().includes(makeLc)) return false;
+            if (modelLc && !veh.model.toLowerCase().includes(modelLc)) return false;
+            return true;
+          });
+
+          return {
+            data: filtered,
+            total: filtered.length,
+          } satisfies VehicleSearchResponse;
+        }
+
         const query = new URLSearchParams();
         if (make) query.set("make", make);
         if (model) query.set("model", model);
         query.set("status", status || "AVAILABLE");
         if (locationId) query.set("locationId", locationId);
-        if (minDailyRate) query.set("minDailyRate", minDailyRate);
-        if (maxDailyRate) query.set("maxDailyRate", maxDailyRate);
         query.set("limit", "20");
         query.set("offset", "0");
 
@@ -120,8 +149,8 @@ export async function VehiclesBrowser({
             model,
             status,
             locationId,
-            minDailyRate,
-            maxDailyRate,
+            startDate,
+            endDate,
           }}
           locations={locationOptions}
         />

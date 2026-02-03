@@ -78,7 +78,10 @@ export default function AdminVehicleEditPage() {
   // Initialize local vehicle state when data loads
   useEffect(() => {
     if (vehicle && !localVehicle) {
-      setLocalVehicle(vehicle);
+      setLocalVehicle({
+        ...vehicle,
+        images: Array.isArray(vehicle.images) ? vehicle.images : [],
+      });
     }
   }, [vehicle, localVehicle]);
 
@@ -111,7 +114,7 @@ export default function AdminVehicleEditPage() {
             : undefined,
           locationId: localVehicle.locationId,
           mileage: Number(localVehicle.mileage),
-          images: [],
+          images: Array.isArray(localVehicle.images) ? localVehicle.images : [],
         },
       });
 
@@ -428,9 +431,28 @@ export default function AdminVehicleEditPage() {
               <CloudinaryImageUpload
                 folder={`vehicles/${id}`}
                 tags={["vehicle", "car-rental"]}
+                multiple={true}
+                maxFiles={5}
                 onUploadComplete={(result) => {
-                  console.log("Image uploaded:", result);
-                  // Handle successful upload (e.g., update vehicle images)
+                  const uploaded = Array.isArray(result) ? result : [result];
+                  const urls = uploaded
+                    .map((r) =>
+                      typeof r?.secureUrl === "string"
+                        ? r.secureUrl
+                        : typeof r?.secure_url === "string"
+                          ? r.secure_url
+                          : null,
+                    )
+                    .filter((u): u is string => Boolean(u));
+
+                  setLocalVehicle((prev) => {
+                    if (!prev) return prev;
+                    const existing = Array.isArray(prev.images) ? prev.images : [];
+                    return {
+                      ...prev,
+                      images: [...existing, ...urls].slice(0, 5),
+                    };
+                  });
                 }}
                 onUploadError={(error) => {
                   console.error("Upload failed:", error);

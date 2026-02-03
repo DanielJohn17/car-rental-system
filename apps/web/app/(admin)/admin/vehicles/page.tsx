@@ -88,6 +88,7 @@ export default function AdminVehiclesPage() {
   const [hourlyRate, setHourlyRate] = useState("");
   const [locationId, setLocationId] = useState("");
   const [mileage, setMileage] = useState("0");
+  const [images, setImages] = useState<string[]>([]);
 
   // Extract data from responses
   const vehicles = vehiclesData?.data || [];
@@ -135,7 +136,7 @@ export default function AdminVehiclesPage() {
         hourlyRate: hourlyRate ? Number(hourlyRate) : undefined,
         locationId,
         mileage: mileage ? Number(mileage) : undefined,
-        images: [],
+        images,
       });
 
       // Reset form on success
@@ -147,6 +148,7 @@ export default function AdminVehiclesPage() {
       setDailyRate("0");
       setHourlyRate("");
       setMileage("0");
+      setImages([]);
     } catch (error) {
       console.error("Failed to create vehicle:", error);
     }
@@ -315,8 +317,18 @@ export default function AdminVehiclesPage() {
               multiple={true}
               maxFiles={5}
               onUploadComplete={(result) => {
-                console.log("Images uploaded:", result);
-                // Handle successful upload (e.g., update vehicle images)
+                const uploaded = Array.isArray(result) ? result : [result];
+                const urls = uploaded
+                  .map((r) =>
+                    typeof r?.secureUrl === "string"
+                      ? r.secureUrl
+                      : typeof r?.secure_url === "string"
+                        ? r.secure_url
+                        : null,
+                  )
+                  .filter((u): u is string => Boolean(u));
+
+                setImages((prev) => [...prev, ...urls].slice(0, 5));
               }}
               onUploadError={(error) => {
                 console.error("Upload failed:", error);

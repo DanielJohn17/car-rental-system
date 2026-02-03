@@ -39,11 +39,26 @@ export async function uploadToCloudinary(
   file: File,
   options: CloudinaryUploadOptions = {},
 ): Promise<CloudinaryUploadResult> {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  if (!cloudName) {
+    throw new Error(
+      "Cloudinary is not configured. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME in apps/web/.env.local",
+    );
+  }
+
+  const uploadPreset =
+    options.uploadPreset || process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  if (!uploadPreset) {
+    throw new Error(
+      "Cloudinary upload preset is not configured. Set NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET in apps/web/.env.local",
+    );
+  }
+
   const formData = new FormData();
   formData.append("file", file);
   formData.append(
     "upload_preset",
-    process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "unsigned",
+    uploadPreset,
   );
 
   if (options.folder) {
@@ -67,26 +82,6 @@ export async function uploadToCloudinary(
     );
   }
 
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo";
-  if (!cloudName || cloudName === "demo") {
-    // For demo purposes, we'll simulate the upload
-    console.warn(
-      "Using demo Cloudinary configuration. Set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME for production.",
-    );
-    return {
-      publicId: `demo_${Date.now()}`,
-      secureUrl: URL.createObjectURL(file),
-      width: 800,
-      height: 600,
-      format: file.type.split("/")[1] || "jpg",
-      resourceType: "image",
-      bytes: file.size,
-      createdAt: new Date().toISOString(),
-      tags: options.tags || [],
-      context: options.context,
-    };
-  }
-
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
     {
@@ -99,8 +94,42 @@ export async function uploadToCloudinary(
     throw new Error(`Upload failed: ${response.statusText}`);
   }
 
-  const result = await response.json();
-  return result;
+  const result = (await response.json()) as Record<string, unknown>;
+  const secureUrl =
+    (result["secure_url"] as string | undefined) ||
+    (result["secureUrl"] as string | undefined) ||
+    "";
+  const publicId =
+    (result["public_id"] as string | undefined) ||
+    (result["publicId"] as string | undefined) ||
+    "";
+
+  return {
+    publicId,
+    secureUrl,
+    width:
+      (result["width"] as number | undefined) ||
+      (result["original_width"] as number | undefined) ||
+      0,
+    height:
+      (result["height"] as number | undefined) ||
+      (result["original_height"] as number | undefined) ||
+      0,
+    format: (result["format"] as string | undefined) || "",
+    resourceType:
+      (result["resource_type"] as string | undefined) ||
+      (result["resourceType"] as string | undefined) ||
+      "image",
+    bytes: (result["bytes"] as number | undefined) || 0,
+    createdAt:
+      (result["created_at"] as string | undefined) ||
+      (result["createdAt"] as string | undefined) ||
+      new Date().toISOString(),
+    tags: (result["tags"] as string[] | undefined) || options.tags || [],
+    context:
+      (result["context"] as Record<string, string> | undefined) ||
+      options.context,
+  };
 }
 
 export function getOptimizedImageUrl(

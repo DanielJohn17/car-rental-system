@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { CalendarIcon } from "lucide-react";
 import {
   addMinutes,
+  addDays,
   addMonths,
   format,
+  differenceInCalendarDays,
   isAfter,
   isBefore,
   isSameDay,
@@ -55,6 +57,14 @@ type PricingBreakdown = {
   currency: string;
 };
 
+type Vehicle = {
+  id: string;
+  make: string;
+  model: string;
+  year: number;
+  dailyRate: number;
+};
+
 type Booking = {
   id: string;
 };
@@ -81,6 +91,17 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
+async function getJson<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: "GET" });
+
+  if (!res.ok) {
+    const message = await getResponseErrorMessage(res, "Request failed");
+    throw new Error(message);
+  }
+
+  return (await res.json()) as T;
+}
+
 export default function NewBookingPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -91,6 +112,7 @@ export default function NewBookingPage() {
   const [guestPhone, setGuestPhone] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [days, setDays] = useState<string>("");
   const [pickupLocationId, setPickupLocationId] = useState("");
   const [returnLocationId, setReturnLocationId] = useState("");
 
@@ -119,6 +141,13 @@ export default function NewBookingPage() {
     if (!locationsQuery.error) return null;
     return toUserErrorMessage(locationsQuery.error, "Failed to load locations");
   }, [locationsQuery.error]);
+
+  const vehicleQuery = useQuery({
+    queryKey: ["public-vehicle", vehicleId],
+    queryFn: () => getJson<Vehicle>(`/api/public/vehicles/${vehicleId}`),
+    enabled: Boolean(vehicleId),
+    staleTime: 60 * 1000,
+  });
 
   const canCalculate = useMemo(() => {
     return Boolean(vehicleId && dateRange?.from && dateRange?.to);
@@ -166,6 +195,18 @@ export default function NewBookingPage() {
     setPricing(null);
     setBookingId(null);
     setCheckoutUrl(null);
+  }, [dateRange?.from, dateRange?.to]);
+
+  useEffect(() => {
+    const from = dateRange?.from;
+    const to = dateRange?.to;
+    if (!from || !to) {
+      setDays("");
+      return;
+    }
+
+    const d = differenceInCalendarDays(startOfDay(to), startOfDay(from));
+    setDays(String(Math.max(0, d)));
   }, [dateRange?.from, dateRange?.to]);
 
   const pricingMutation = useMutation({
@@ -221,6 +262,30 @@ export default function NewBookingPage() {
   });
 
   const loading = pricingMutation.isPending || bookingMutation.isPending;
+
+  useEffect(() => {
+    if (!canCalculate) return;
+    if (dateValidationError) return;
+
+    const timeout = setTimeout(() => {
+      pricingMutation.mutate({
+        vehicleId,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        locationId: pickupLocationId || undefined,
+      });
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [
+    canCalculate,
+    dateValidationError,
+    endDateTime,
+    pickupLocationId,
+    startDateTime,
+    vehicleId,
+    pricingMutation,
+  ]);
 
   async function calculate() {
     setError(null);
@@ -289,6 +354,12 @@ export default function NewBookingPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             Fill in the booking details, calculate pricing, then pay the deposit.
           </p>
+          {vehicleQuery.data ? (
+            <div className="mt-2 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Vehicle rate:</span>{" "}
+              ${vehicleQuery.data.dailyRate}/day
+            </div>
+          ) : null}
         </div>
 
         {!vehicleId ? (
@@ -401,6 +472,29 @@ export default function NewBookingPage() {
                       </PopoverContent>
                     </Popover>
                     <InlineError message={dateValidationError} />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="days">Days</Label>
+                    <Input
+                      id="days"
+                      inputMode="numeric"
+                      value={days}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setDays(raw);
+
+                        const from = dateRange?.from;
+                        const parsed = Number(raw);
+                        if (!from || !Number.isFinite(parsed) || parsed <= 0) {
+                          return;
+                        }
+
+                        const nextTo = addDays(startOfDay(from), parsed);
+                        setDateRange({ from, to: nextTo });
+                      }}
+                      placeholder="e.g. 3"
+                    />
                   </div>
 
                   <div className="grid gap-2">

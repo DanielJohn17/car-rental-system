@@ -8,8 +8,8 @@ export default async function Home({
     model?: string;
     status?: string;
     locationId?: string;
-    minDailyRate?: string;
-    maxDailyRate?: string;
+    startDate?: string;
+    endDate?: string;
   }>;
 }) {
   return (
