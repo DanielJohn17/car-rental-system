@@ -24,15 +24,14 @@ import { PageContainer } from "@/components/page-container";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -179,9 +178,10 @@ export default function NewBookingPage() {
 
     const now = new Date();
     const candidate = setHours(startOfDay(dateRange.from), 10);
-    const resolved = isSameDay(dateRange.from, now) && isBefore(candidate, now)
-      ? addMinutes(now, 5)
-      : candidate;
+    const resolved =
+      isSameDay(dateRange.from, now) && isBefore(candidate, now)
+        ? addMinutes(now, 5)
+        : candidate;
     return resolved.toISOString();
   }, [dateRange?.from]);
 
@@ -352,7 +352,8 @@ export default function NewBookingPage() {
         <div className="mb-6">
           <h1 className="text-3xl font-semibold tracking-tight">New booking</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Fill in the booking details, calculate pricing, then pay the deposit.
+            Fill in the booking details, calculate pricing, then pay the
+            deposit.
           </p>
           {vehicleQuery.data ? (
             <div className="mt-2 text-sm text-muted-foreground">
@@ -501,7 +502,9 @@ export default function NewBookingPage() {
                     <Label htmlFor="pickupLocationId">Pickup location</Label>
                     <Select
                       value={pickupLocationId}
-                      onValueChange={(value: string) => setPickupLocationId(value)}
+                      onValueChange={(value: string) =>
+                        setPickupLocationId(value)
+                      }
                     >
                       <SelectTrigger id="pickupLocationId">
                         <SelectValue placeholder="Select location" />
@@ -519,7 +522,9 @@ export default function NewBookingPage() {
                     <Label htmlFor="returnLocationId">Return location</Label>
                     <Select
                       value={returnLocationId}
-                      onValueChange={(value: string) => setReturnLocationId(value)}
+                      onValueChange={(value: string) =>
+                        setReturnLocationId(value)
+                      }
                     >
                       <SelectTrigger id="returnLocationId">
                         <SelectValue placeholder="Select location" />
@@ -536,15 +541,27 @@ export default function NewBookingPage() {
                 </div>
 
                 <div className="mt-6 flex flex-wrap gap-2">
-                  <Button type="button" variant="outline" onClick={calculate} disabled={!canCalculate || loading}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={calculate}
+                    disabled={!canCalculate || loading}
+                  >
                     {loading ? "Calculating..." : "Calculate pricing"}
                   </Button>
-                  <Button type="button" onClick={submit} disabled={!pricing || loading || Boolean(checkoutUrl)}>
+                  <Button
+                    type="button"
+                    onClick={submit}
+                    disabled={!pricing || loading || Boolean(checkoutUrl)}
+                  >
                     {loading ? "Working..." : "Pay deposit"}
                   </Button>
                 </div>
 
-                <InlineError message={error ?? locationsError} className="mt-4" />
+                <InlineError
+                  message={error ?? locationsError}
+                  className="mt-4"
+                />
               </CardContent>
             </Card>
 
@@ -559,8 +576,9 @@ export default function NewBookingPage() {
                     {pricing.totalPrice} {pricing.currency}
                   </div>
                   <div className="mt-1">
-                    <span className="font-medium text-foreground">Deposit</span> ({pricing.depositPercentage}%):{" "}
-                    {pricing.depositAmount} {pricing.currency}
+                    <span className="font-medium text-foreground">Deposit</span>{" "}
+                    ({pricing.depositPercentage}%): {pricing.depositAmount}{" "}
+                    {pricing.currency}
                   </div>
                 </CardContent>
               </Card>
@@ -569,7 +587,9 @@ export default function NewBookingPage() {
             {checkoutUrl ? (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Redirecting to Stripe</CardTitle>
+                  <CardTitle className="text-lg">
+                    Redirecting to Stripe
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">
                   <div>

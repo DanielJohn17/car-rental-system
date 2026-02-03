@@ -13,14 +13,17 @@ export async function POST(request: Request) {
     : await request.text();
 
   try {
-    const res = await fetch(`${API_BASE_URL}/stripe-connect-demo/storefront/checkout`, {
-      method: "POST",
-      headers: {
-        ...(contentType ? { "Content-Type": contentType } : {}),
+    const res = await fetch(
+      `${API_BASE_URL}/stripe-connect-demo/storefront/checkout`,
+      {
+        method: "POST",
+        headers: {
+          ...(contentType ? { "Content-Type": contentType } : {}),
+        },
+        body,
+        cache: "no-store",
       },
-      body,
-      cache: "no-store",
-    });
+    );
 
     if (!res.ok) {
       const message = await getResponseErrorMessage(res, "Checkout failed");

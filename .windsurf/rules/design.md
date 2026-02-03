@@ -1,6 +1,7 @@
 ---
 trigger: always_on
 ---
+
 # Windsurf Design Rules for Car Rental System
 
 This document outlines the design rules and conventions for the AI to follow when generating code for the Car Rental System project.
@@ -46,4 +47,3 @@ This document outlines the design rules and conventions for the AI to follow whe
 - **UI Design Inspiration:**
   - [Mobbin](https://mobbin.com)
   - [Page Flows](https://pageflows.com)
-

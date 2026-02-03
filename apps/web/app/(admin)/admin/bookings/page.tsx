@@ -6,7 +6,12 @@ import { InlineError } from "../../../../components/inline-error";
 import { PageContainer } from "../../../../components/page-container";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../../../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../../../../components/ui/card";
 import {
   getResponseErrorMessage,
   toUserErrorMessage,
@@ -36,11 +41,9 @@ type Booking = {
   };
 };
 
-function statusBadgeVariant(status?: string):
-  | "default"
-  | "secondary"
-  | "destructive"
-  | "outline" {
+function statusBadgeVariant(
+  status?: string,
+): "default" | "secondary" | "destructive" | "outline" {
   const s = (status ?? "").toUpperCase();
   if (s === "APPROVED" || s === "CONFIRMED") return "default";
   if (s === "REJECTED" || s === "CANCELLED") return "destructive";
@@ -120,14 +123,21 @@ export default function AdminBookingsPage() {
   return (
     <PageContainer>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-semibold tracking-tight">Pending bookings</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Pending bookings
+        </h1>
         <Button asChild variant="outline">
           <Link href="/admin/dashboard">Back to dashboard</Link>
         </Button>
       </div>
 
       <div className="mb-4 flex items-center gap-2">
-        <Button type="button" variant="outline" onClick={loadPending} disabled={loading}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={loadPending}
+          disabled={loading}
+        >
           {loading ? "Refreshing..." : "Refresh"}
         </Button>
       </div>
@@ -143,7 +153,12 @@ export default function AdminBookingsPage() {
                 New booking requests will appear here.
               </p>
               <div className="mt-4 flex justify-center gap-2">
-                <Button type="button" variant="outline" onClick={loadPending} disabled={loading}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={loadPending}
+                  disabled={loading}
+                >
                   Refresh
                 </Button>
                 <Button asChild>
@@ -164,13 +179,17 @@ export default function AdminBookingsPage() {
                       ? `${b.vehicle.make} ${b.vehicle.model} (${b.vehicle.year})`
                       : "Vehicle"}
                   </CardTitle>
-                  <Badge variant={statusBadgeVariant(b.status)}>{b.status}</Badge>
+                  <Badge variant={statusBadgeVariant(b.status)}>
+                    {b.status}
+                  </Badge>
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
                   <div>
-                    <span className="font-medium text-foreground">Booking ID:</span>{" "}
+                    <span className="font-medium text-foreground">
+                      Booking ID:
+                    </span>{" "}
                     {b.id}
                   </div>
                   <div>
@@ -179,13 +198,17 @@ export default function AdminBookingsPage() {
                   </div>
                   {b.guestEmail ? (
                     <div className="sm:col-span-2">
-                      <span className="font-medium text-foreground">Email:</span>{" "}
+                      <span className="font-medium text-foreground">
+                        Email:
+                      </span>{" "}
                       {b.guestEmail}
                     </div>
                   ) : null}
                   {b.pickupLocation ? (
                     <div className="sm:col-span-2">
-                      <span className="font-medium text-foreground">Pickup:</span>{" "}
+                      <span className="font-medium text-foreground">
+                        Pickup:
+                      </span>{" "}
                       {b.pickupLocation.name}
                     </div>
                   ) : null}
@@ -197,7 +220,9 @@ export default function AdminBookingsPage() {
                   <div className="sm:col-span-2">
                     <span className="font-medium text-foreground">Total:</span>{" "}
                     {b.totalPrice} •{" "}
-                    <span className="font-medium text-foreground">Deposit:</span>{" "}
+                    <span className="font-medium text-foreground">
+                      Deposit:
+                    </span>{" "}
                     {b.depositAmount}
                   </div>
                 </div>

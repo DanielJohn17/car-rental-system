@@ -56,10 +56,7 @@ export async function uploadToCloudinary(
 
   const formData = new FormData();
   formData.append("file", file);
-  formData.append(
-    "upload_preset",
-    uploadPreset,
-  );
+  formData.append("upload_preset", uploadPreset);
 
   if (options.folder) {
     formData.append("folder", options.folder);

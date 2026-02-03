@@ -447,7 +447,9 @@ export default function AdminVehicleEditPage() {
 
                   setLocalVehicle((prev) => {
                     if (!prev) return prev;
-                    const existing = Array.isArray(prev.images) ? prev.images : [];
+                    const existing = Array.isArray(prev.images)
+                      ? prev.images
+                      : [];
                     return {
                       ...prev,
                       images: [...existing, ...urls].slice(0, 5),

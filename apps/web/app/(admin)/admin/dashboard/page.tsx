@@ -34,11 +34,9 @@ type VehicleListResponse = {
   total: number;
 };
 
-function statusBadgeVariant(status?: string):
-  | "default"
-  | "secondary"
-  | "destructive"
-  | "outline" {
+function statusBadgeVariant(
+  status?: string,
+): "default" | "secondary" | "destructive" | "outline" {
   const s = (status ?? "").toUpperCase();
   if (s === "AVAILABLE") return "default";
   if (s === "MAINTENANCE" || s === "DAMAGED") return "destructive";
@@ -243,7 +241,9 @@ export default async function AdminDashboardPage() {
       <div className="mt-10">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">Your vehicles</h2>
+            <h2 className="text-xl font-semibold tracking-tight">
+              Your vehicles
+            </h2>
             <p className="text-sm text-muted-foreground">
               Total: {vehiclesResponse.total}
             </p>

@@ -33,7 +33,8 @@ export default async function StorefrontPage({
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <h1 style={{ fontSize: 28, fontWeight: 700 }}>Storefront</h1>
           <p style={{ marginTop: 6, color: "#555" }}>
-            Account: <span style={{ fontFamily: "monospace" }}>{accountId}</span>
+            Account:{" "}
+            <span style={{ fontFamily: "monospace" }}>{accountId}</span>
           </p>
 
           <div
@@ -76,11 +77,7 @@ export default async function StorefrontPage({
                       name="priceId"
                       value={p.default_price?.id ?? ""}
                     />
-                    <input
-                      type="hidden"
-                      name="quantity"
-                      value={"1"}
-                    />
+                    <input type="hidden" name="quantity" value={"1"} />
                     <input
                       type="hidden"
                       name="successUrl"

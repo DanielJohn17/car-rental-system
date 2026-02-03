@@ -39,11 +39,14 @@ export default async function StripeConnectDemoPage({
 
   let status: ConnectStatus | null = null;
   try {
-    status = await apiFetch<ConnectStatus>("/stripe-connect-demo/admin/status", {
-      headers: {
-        Authorization: `Bearer ${token}`,
+    status = await apiFetch<ConnectStatus>(
+      "/stripe-connect-demo/admin/status",
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
-    });
+    );
   } catch {
     status = null;
   }
@@ -103,9 +106,12 @@ export default async function StripeConnectDemoPage({
             background: "#fff",
           }}
         >
-          <h2 style={{ fontSize: 18, fontWeight: 700 }}>1) Onboard to Connect</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700 }}>
+            1) Onboard to Connect
+          </h2>
           <p style={{ marginTop: 6, color: "#444" }}>
-            This demo uses the Stripe Connect <strong>V2 Accounts API</strong> and
+            This demo uses the Stripe Connect <strong>V2 Accounts API</strong>{" "}
+            and
             <strong> V2 Account Links</strong>.
           </p>
 

@@ -93,8 +93,10 @@ export async function VehiclesBrowser({
           const modelLc = model.trim().toLowerCase();
 
           const filtered = available.filter((veh) => {
-            if (makeLc && !veh.make.toLowerCase().includes(makeLc)) return false;
-            if (modelLc && !veh.model.toLowerCase().includes(modelLc)) return false;
+            if (makeLc && !veh.make.toLowerCase().includes(makeLc))
+              return false;
+            if (modelLc && !veh.model.toLowerCase().includes(modelLc))
+              return false;
             return true;
           });
 

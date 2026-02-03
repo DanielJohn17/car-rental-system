@@ -5,11 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-export function RouteTransitionLoader({
-  className,
-}: {
-  className?: string;
-}) {
+export function RouteTransitionLoader({ className }: { className?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 

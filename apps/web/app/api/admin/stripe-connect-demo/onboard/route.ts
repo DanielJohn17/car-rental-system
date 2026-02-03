@@ -19,13 +19,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const res = await fetch(`${API_BASE_URL}/stripe-connect-demo/admin/onboard`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
+    const res = await fetch(
+      `${API_BASE_URL}/stripe-connect-demo/admin/onboard`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
       },
-      cache: "no-store",
-    });
+    );
 
     if (!res.ok) {
       const message = truncateMessage(

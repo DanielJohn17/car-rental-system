@@ -29,20 +29,23 @@ export async function POST(request: Request) {
   const currency = String(form.get("currency") ?? "usd");
 
   try {
-    const res = await fetch(`${API_BASE_URL}/stripe-connect-demo/admin/products`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const res = await fetch(
+      `${API_BASE_URL}/stripe-connect-demo/admin/products`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          description,
+          priceInCents,
+          currency,
+        }),
+        cache: "no-store",
       },
-      body: JSON.stringify({
-        name,
-        description,
-        priceInCents,
-        currency,
-      }),
-      cache: "no-store",
-    });
+    );
 
     if (!res.ok) {
       const message = truncateMessage(
@@ -53,7 +56,9 @@ export async function POST(request: Request) {
       return NextResponse.redirect(url);
     }
 
-    return NextResponse.redirect(new URL("/admin/stripe-connect-demo", request.url));
+    return NextResponse.redirect(
+      new URL("/admin/stripe-connect-demo", request.url),
+    );
   } catch {
     const url = new URL("/admin/stripe-connect-demo", request.url);
     url.searchParams.set("stripeError", "Failed to create product");

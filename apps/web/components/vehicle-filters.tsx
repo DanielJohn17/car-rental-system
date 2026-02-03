@@ -50,7 +50,9 @@ export function VehicleFilters({
     return undefined;
   }, [startDate, endDate]);
 
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(initialRange);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(
+    initialRange,
+  );
 
   const dateValidationError = useMemo(() => {
     const from = dateRange?.from;
@@ -72,7 +74,9 @@ export function VehicleFilters({
   const startDateValue = dateRange?.from
     ? startOfDay(dateRange.from).toISOString()
     : "";
-  const endDateValue = dateRange?.to ? startOfDay(dateRange.to).toISOString() : "";
+  const endDateValue = dateRange?.to
+    ? startOfDay(dateRange.to).toISOString()
+    : "";
 
   return (
     <form
