@@ -4,6 +4,8 @@ import { getResponseErrorMessage } from "../../../lib/errors";
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:5000";
 
+const PROXY_TIMEOUT_MS = 8000;
+
 export async function proxyPublic(request: Request, apiPath: string) {
   const url = new URL(request.url);
   const targetUrl = new URL(`${API_BASE_URL}${apiPath}`);
@@ -23,6 +25,9 @@ export async function proxyPublic(request: Request, apiPath: string) {
   }
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+
     const res = await fetch(targetUrl, {
       method,
       headers: {
@@ -30,7 +35,10 @@ export async function proxyPublic(request: Request, apiPath: string) {
       },
       body,
       cache: "no-store",
+      signal: controller.signal,
     });
+
+    clearTimeout(timeout);
 
     if (!res.ok) {
       const message = await getResponseErrorMessage(res, "Request failed");
@@ -50,6 +58,13 @@ export async function proxyPublic(request: Request, apiPath: string) {
     return new NextResponse(text, { status: res.status });
   } catch (error) {
     console.error("Proxy public fetch failed:", error);
+
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return NextResponse.json(
+        { error: "Upstream request timed out" },
+        { status: 504 },
+      );
+    }
 
     // Return appropriate fallback based on the endpoint
     if (apiPath.includes("/locations")) {

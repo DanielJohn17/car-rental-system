@@ -27,6 +27,11 @@ export function ImagePlaceholder({
   const [imageLoading, setImageLoading] = useState(true);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
+  const sizeStyle = useMemo(() => {
+    if (className) return undefined;
+    return { width, height } as const;
+  }, [className, height, width]);
+
   useEffect(() => {
     if (!src) return;
     setImageError(false);
@@ -59,10 +64,11 @@ export function ImagePlaceholder({
     return (
       <div
         className={cn(
-          "flex items-center justify-center bg-muted rounded-md border",
+          "relative flex items-center justify-center overflow-hidden rounded-md border bg-muted",
+          className,
           fallbackClassName,
         )}
-        style={{ width, height }}
+        style={sizeStyle}
       >
         <div className="flex flex-col items-center justify-center text-muted-foreground">
           <IconComponent className="h-8 w-8 mb-2 opacity-50" />
@@ -79,11 +85,17 @@ export function ImagePlaceholder({
   }
 
   return (
-    <div className={cn("relative overflow-hidden rounded-md", className)}>
+    <div
+      className={cn(
+        "relative overflow-hidden rounded-md border bg-muted",
+        className,
+      )}
+      style={sizeStyle}
+    >
       {imageLoading && (
         <div
           className="absolute inset-0 flex items-center justify-center bg-muted"
-          style={{ width, height }}
+          style={sizeStyle}
         >
           <div className="animate-pulse flex flex-col items-center justify-center text-muted-foreground">
             {variant === "vehicle" ? (

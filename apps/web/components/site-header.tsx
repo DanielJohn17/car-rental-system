@@ -22,7 +22,6 @@ export function SiteHeader({
               <Link href="/" className="text-foreground">
                 Vehicles
               </Link>
-              <Link href="/vehicles">Inventory</Link>
               <Link href="/admin/login">Renter</Link>
             </div>
           </nav>
