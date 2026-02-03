@@ -9,6 +9,8 @@ import { User } from '../auth/entities/user.entity';
 import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
 import { StripeService } from './services/stripe.service';
+import { StripeConnectDemoController } from './stripe-connect-demo.controller';
+import { StripeConnectDemoService } from './stripe-connect-demo.service';
 
 @Module({
   imports: [
@@ -16,8 +18,8 @@ import { StripeService } from './services/stripe.service';
     BookingsModule,
     TypeOrmModule.forFeature([Payment, Booking, Vehicle, User]),
   ],
-  providers: [PaymentsService, StripeService],
-  controllers: [PaymentsController],
+  providers: [PaymentsService, StripeService, StripeConnectDemoService],
+  controllers: [PaymentsController, StripeConnectDemoController],
   exports: [PaymentsService, StripeService],
 })
 export class PaymentsModule {}

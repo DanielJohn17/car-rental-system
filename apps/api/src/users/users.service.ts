@@ -41,12 +41,19 @@ export class UsersService {
     }
 
     if (!user.email) {
-      throw new BadRequestException('User email is required to create Stripe account');
+      throw new BadRequestException(
+        'User email is required to create Stripe account',
+      );
     }
 
     if (!user.stripeConnectAccountId) {
-      const created = await this.stripeService.createExpressConnectAccount({
-        email: user.email,
+      // Create the connected account using Stripe Connect *V2*.
+      //
+      // IMPORTANT: Do NOT pass `type: 'express' | 'standard' | 'custom'`.
+      // The request MUST use only the properties required by the integration spec.
+      const created = await this.stripeService.createConnectedAccountV2({
+        displayName: user.fullName,
+        contactEmail: user.email,
       });
 
       user.stripeConnectAccountId = created.accountId;
@@ -58,7 +65,8 @@ export class UsersService {
     const returnUrl = new URL('/admin/dashboard', webAppUrl).toString();
     const refreshUrl = new URL('/admin/dashboard', webAppUrl).toString();
 
-    const onboarding = await this.stripeService.createConnectOnboardingLink({
+    // Create a Stripe Account Link so the user can complete onboarding.
+    const onboarding = await this.stripeService.createAccountOnboardingLinkV2({
       accountId: user.stripeConnectAccountId,
       refreshUrl,
       returnUrl,
@@ -67,6 +75,43 @@ export class UsersService {
     return {
       stripeConnectAccountId: user.stripeConnectAccountId,
       onboardingUrl: onboarding.url,
+    };
+  }
+
+  async getStripeConnectStatusForAdmin(userId: string): Promise<{
+    stripeConnectAccountId: string | null;
+    readyToProcessPayments: boolean;
+    requirementsStatus: string | undefined;
+    onboardingComplete: boolean;
+  }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'Only admins can view Stripe Connect status',
+      );
+    }
+
+    if (!user.stripeConnectAccountId) {
+      return {
+        stripeConnectAccountId: null,
+        readyToProcessPayments: false,
+        requirementsStatus: undefined,
+        onboardingComplete: false,
+      };
+    }
+
+    const status = await this.stripeService.getConnectedAccountStatusV2({
+      accountId: user.stripeConnectAccountId,
+    });
+
+    return {
+      stripeConnectAccountId: user.stripeConnectAccountId,
+      ...status,
     };
   }
 

@@ -104,7 +104,8 @@ export class PaymentsService {
           this.configService.get<string>('STRIPE_ADMIN_ACCOUNT_ID') || '';
       }
 
-      const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+      const nodeEnv =
+        this.configService.get<string>('NODE_ENV') || 'development';
       const isProduction = nodeEnv === 'production';
       const useConnect = Boolean(adminStripeAccountId);
 
@@ -125,7 +126,8 @@ export class PaymentsService {
       );
 
       const webAppUrl =
-        this.configService.get<string>('WEB_APP_URL') || 'http://localhost:3000';
+        this.configService.get<string>('WEB_APP_URL') ||
+        'http://localhost:3000';
 
       const successUrl = new URL(
         `/confirmation/${createDto.bookingId}`,
@@ -252,7 +254,8 @@ export class PaymentsService {
           this.configService.get<string>('STRIPE_ADMIN_ACCOUNT_ID') || '';
       }
 
-      const nodeEnv = this.configService.get<string>('NODE_ENV') || 'development';
+      const nodeEnv =
+        this.configService.get<string>('NODE_ENV') || 'development';
       const isProduction = nodeEnv === 'production';
       const useConnect = Boolean(adminStripeAccountId);
 

@@ -106,6 +106,9 @@ export default async function AdminDashboardPage() {
               Connect Stripe
             </Button>
           </form>
+          <Button asChild variant="outline">
+            <Link href="/admin/stripe-connect-demo">Stripe Connect demo</Link>
+          </Button>
           <form action="/api/admin/logout" method="post">
             <Button type="submit" variant="secondary">
               Logout
