@@ -29,15 +29,13 @@ import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { createRoleGuard } from './guards/role.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { UserRole } from './entities/user.entity';
-
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  role: string;
-}
+import type { JwtPayload } from './types/jwt-payload.type';
 
 @ApiTags('Auth')
 @Controller('auth')
+/**
+ * Authentication endpoints for admin and staff users.
+ */
 export class AuthController {
   constructor(private authService: AuthService) {}
 

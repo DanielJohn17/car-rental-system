@@ -5,14 +5,17 @@ import {
   Type,
 } from '@nestjs/common';
 import { UserRole } from '../entities/user.entity';
+import type { JwtPayload } from '../types/jwt-payload.type';
 
 export const createRoleGuard = (
   requiredRoles: UserRole[],
 ): Type<CanActivate> => {
   class RoleGuardImpl implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
-      const request = context.switchToHttp().getRequest();
-      const user = request.user;
+      const request = context
+        .switchToHttp()
+        .getRequest<{ user?: JwtPayload }>();
+      const user: JwtPayload | undefined = request.user;
 
       if (!user) {
         throw new ForbiddenException('User not found in request');

@@ -11,6 +11,8 @@ import {
   ValidationPipe,
   HttpCode,
   HttpStatus,
+  DefaultValuePipe,
+  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -30,17 +32,15 @@ import { JwtGuard } from '../auth/guards/jwt.guard';
 import { createRoleGuard } from '../auth/guards/role.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '../auth/entities/user.entity';
-
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  role: string;
-}
+import type { JwtPayload } from '../auth/types/jwt-payload.type';
 
 @ApiTags('Users (Admin & Sales Staff)')
 @ApiBearerAuth()
 @UseGuards(JwtGuard)
 @Controller('users')
+/**
+ * Staff management endpoints for admin and sales users.
+ */
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -77,8 +77,8 @@ export class UsersController {
     type: StaffListResponseDto,
   })
   async getStaffMembers(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ): Promise<StaffListResponseDto> {
     return this.usersService.getStaffMembers(page, limit);
   }

@@ -11,6 +11,7 @@ import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 import { JwtGuard } from './guards/jwt.guard';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { UserRepository } from './repositories/user.repository';
+import { ACCESS_TOKEN_EXPIRES_IN, DEFAULT_JWT_SECRET } from './auth.constants';
 
 @Module({
   imports: [
@@ -19,8 +20,8 @@ import { UserRepository } from './repositories/user.repository';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'secret-key',
-        signOptions: { expiresIn: '15m' },
+        secret: configService.get<string>('JWT_SECRET') || DEFAULT_JWT_SECRET,
+        signOptions: { expiresIn: ACCESS_TOKEN_EXPIRES_IN },
       }),
     }),
   ],
