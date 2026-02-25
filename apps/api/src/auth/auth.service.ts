@@ -16,13 +16,11 @@ import {
   StaffRegisterDto,
   AuthResponseDto,
 } from './dtos';
-import {
-  ACCESS_TOKEN_EXPIRES_IN,
-  BCRYPT_SALT_ROUNDS,
-  DEFAULT_JWT_REFRESH_SECRET,
-  REFRESH_TOKEN_EXPIRES_IN,
-} from './auth.constants';
 import { JwtPayload } from './types/jwt-payload.type';
+
+const ACCESS_TOKEN_EXPIRES_IN = '15m' as const;
+const REFRESH_TOKEN_EXPIRES_IN = '7d' as const;
+const BCRYPT_SALT_ROUNDS = 10 as const;
 
 @Injectable()
 export class AuthService {
@@ -157,8 +155,7 @@ export class AuthService {
       expiresIn: ACCESS_TOKEN_EXPIRES_IN,
     });
     const refreshTokenSecret: string =
-      this.configService.get<string>('JWT_REFRESH_SECRET') ||
-      DEFAULT_JWT_REFRESH_SECRET;
+      this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
     const refreshToken: string = this.jwtService.sign(payload, {
       secret: refreshTokenSecret,
       expiresIn: REFRESH_TOKEN_EXPIRES_IN,
