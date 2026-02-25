@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Query, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  Post,
+  Body,
+  ValidationPipe,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -70,7 +78,7 @@ export class LocationsController {
   })
   @ApiResponse({ status: 201, description: 'Location created', type: Location })
   async create(
-    @Body() createLocationDto: CreateLocationDto,
+    @Body(ValidationPipe) createLocationDto: CreateLocationDto,
   ): Promise<Location> {
     return this.locationsService.create(createLocationDto);
   }

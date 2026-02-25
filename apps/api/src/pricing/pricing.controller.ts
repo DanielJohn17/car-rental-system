@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get } from '@nestjs/common';
+import { Controller, Post, Body, Get, ValidationPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { PricingService } from './pricing.service';
 import { CalculatePricingDto, PricingBreakdownDto } from './dtos';
@@ -38,7 +38,7 @@ export class PricingController {
     description: 'Invalid date range or past start date',
   })
   async calculatePricing(
-    @Body() calculateDto: CalculatePricingDto,
+    @Body(ValidationPipe) calculateDto: CalculatePricingDto,
   ): Promise<PricingBreakdownDto> {
     return this.pricingService.calculatePricing(calculateDto);
   }

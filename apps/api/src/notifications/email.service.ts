@@ -5,6 +5,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+const RESEND_API_BASE_URL = 'https://api.resend.com/emails' as const;
+const DEFAULT_FROM_EMAIL = 'noreply@carrental.com' as const;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface ResendEmailParams {
   from: string;
   to: string;
@@ -21,12 +25,12 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly resendApiKey: string;
   private readonly fromEmail: string;
-  private readonly apiBaseUrl = 'https://api.resend.com/emails';
+  private readonly apiBaseUrl = RESEND_API_BASE_URL;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.resendApiKey = this.configService.get<string>('RESEND_API_KEY') || '';
     this.fromEmail =
-      this.configService.get<string>('EMAIL_FROM') || 'noreply@carrental.com';
+      this.configService.get<string>('EMAIL_FROM') || DEFAULT_FROM_EMAIL;
 
     if (!this.resendApiKey) {
       this.logger.warn(
@@ -52,22 +56,17 @@ export class EmailService {
     }
 
     try {
-      const response = await fetch(this.apiBaseUrl, {
+      const response: Response = await fetch(this.apiBaseUrl, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.resendApiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          from: params.from || this.fromEmail,
-          to: params.to,
-          subject: params.subject,
-          html: params.html,
-        }),
+        body: JSON.stringify(this.buildResendRequestBody(params)),
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData: unknown = await this.tryReadJson(response);
         this.logger.error(`Resend API error: ${response.status}`, errorData);
 
         // Handle specific Resend errors
@@ -107,8 +106,24 @@ export class EmailService {
    * Validate email format
    */
   private isValidEmail(email: string): boolean {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    return EMAIL_REGEX.test(email);
+  }
+
+  private buildResendRequestBody(params: ResendEmailParams): ResendEmailParams {
+    return {
+      from: params.from || this.fromEmail,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+    };
+  }
+
+  private async tryReadJson(response: Response): Promise<unknown> {
+    try {
+      return await response.json();
+    } catch {
+      return {};
+    }
   }
 
   /**

@@ -66,7 +66,9 @@ export class BookingsController {
     description: 'Validation error (dates, availability, pricing)',
   })
   @ApiResponse({ status: 404, description: 'Vehicle or location not found' })
-  async create(@Body() createBookingDto: CreateBookingDto): Promise<Booking> {
+  async create(
+    @Body(ValidationPipe) createBookingDto: CreateBookingDto,
+  ): Promise<Booking> {
     return this.bookingsService.create(createBookingDto);
   }
 
@@ -248,7 +250,7 @@ export class BookingsController {
   @ApiResponse({ status: 404, description: 'Booking not found' })
   async updateStatus(
     @Param('id') id: string,
-    @Body() updateDto: UpdateBookingStatusDto,
+    @Body(ValidationPipe) updateDto: UpdateBookingStatusDto,
     @CurrentUser() user: JwtPayload,
   ): Promise<Booking> {
     return this.bookingsService.updateStatus(id, updateDto, user.sub);

@@ -38,7 +38,7 @@ import { DamageReport } from '../dashboard/entities/damage-report.entity';
           connectionTimeoutMillis: 8000,
           statement_timeout: 8000,
         },
-        // logging: configService.get<string>('NODE_ENV') === 'development',
+        logging: configService.get<string>('NODE_ENV') === 'development',
       }),
     }),
   ],

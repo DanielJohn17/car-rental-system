@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   BadRequestException,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiQuery,
@@ -27,6 +28,9 @@ import {
   UpdateVehicleDto,
   SearchVehiclesDto,
   CheckAvailabilityDto,
+  UpdateVehicleStatusDto,
+  UpdateVehicleMileageDto,
+  AddMaintenanceRecordDto,
 } from './dtos';
 import { Vehicle, VehicleStatus } from './entities/vehicle.entity';
 import { MaintenanceRecord } from './entities/maintenance-record.entity';
@@ -150,7 +154,7 @@ export class VehicleController {
   @ApiResponse({ status: 200, description: 'Availability check result' })
   async checkAvailability(
     @Param('id') vehicleId: string,
-    @Body() checkDto: CheckAvailabilityDto,
+    @Body(ValidationPipe) checkDto: CheckAvailabilityDto,
   ) {
     if (new Date(checkDto.startDate) >= new Date(checkDto.endDate)) {
       throw new BadRequestException('Start date must be before end date');
@@ -234,7 +238,9 @@ export class VehicleController {
     status: 409,
     description: 'License plate or VIN already exists',
   })
-  async create(@Body() createVehicleDto: CreateVehicleDto): Promise<Vehicle> {
+  async create(
+    @Body(ValidationPipe) createVehicleDto: CreateVehicleDto,
+  ): Promise<Vehicle> {
     return this.vehicleService.create(createVehicleDto);
   }
 
@@ -279,7 +285,7 @@ export class VehicleController {
   })
   async update(
     @Param('id') id: string,
-    @Body() updateVehicleDto: UpdateVehicleDto,
+    @Body(ValidationPipe) updateVehicleDto: UpdateVehicleDto,
   ): Promise<Vehicle> {
     return this.vehicleService.update(id, updateVehicleDto);
   }
@@ -334,8 +340,9 @@ export class VehicleController {
   @ApiResponse({ status: 400, description: 'Invalid status value' })
   async updateStatus(
     @Param('id') id: string,
-    @Body('status') status: VehicleStatus,
+    @Body(ValidationPipe) body: UpdateVehicleStatusDto,
   ): Promise<Vehicle> {
+    const { status } = body;
     if (!Object.values(VehicleStatus).includes(status)) {
       throw new BadRequestException(
         `Invalid status: ${status}. Allowed values: ${Object.values(VehicleStatus).join(', ')}`,
@@ -379,8 +386,9 @@ export class VehicleController {
   })
   async updateMileage(
     @Param('id') id: string,
-    @Body('mileage') mileage: number,
+    @Body(ValidationPipe) body: UpdateVehicleMileageDto,
   ): Promise<Vehicle> {
+    const { mileage } = body;
     if (typeof mileage !== 'number' || mileage < 0) {
       throw new BadRequestException('Mileage must be a positive number');
     }
@@ -471,8 +479,7 @@ export class VehicleController {
   })
   async addMaintenanceRecord(
     @Param('id') vehicleId: string,
-    @Body()
-    body: { type: string; cost: number; mileageAtTime: number; notes?: string },
+    @Body(ValidationPipe) body: AddMaintenanceRecordDto,
   ): Promise<MaintenanceRecord> {
     return this.vehicleService.addMaintenanceRecord(
       vehicleId,

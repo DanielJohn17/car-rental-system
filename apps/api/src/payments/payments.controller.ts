@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -63,7 +64,7 @@ export class PaymentsController {
     description: 'Invalid booking status or amount mismatch',
   })
   async createPayment(
-    @Body() createDto: CreatePaymentDto,
+    @Body(ValidationPipe) createDto: CreatePaymentDto,
   ): Promise<PaymentStatusDto> {
     return this.paymentsService.createPayment(createDto);
   }
