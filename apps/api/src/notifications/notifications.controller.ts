@@ -144,7 +144,7 @@ export class NotificationsController {
   @ApiOperation({
     summary: 'Send payment confirmation',
     description:
-      'Send email when deposit payment is confirmed. Called after Stripe webhook.',
+      'Send email when deposit payment is confirmed. Called after payment is received.',
   })
   @ApiResponse({
     status: 201,

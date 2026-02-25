@@ -588,7 +588,7 @@ export default function NewBookingPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">
-                    Redirecting to Stripe
+                    Processing Payment
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-muted-foreground">

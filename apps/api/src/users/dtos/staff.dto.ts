@@ -65,6 +65,15 @@ export class UpdateStaffDto {
   @IsOptional()
   @IsPhoneNumber('ET')
   phone?: string;
+
+  @ApiPropertyOptional({
+    enum: [UserRole.ADMIN, UserRole.SALES],
+    example: UserRole.SALES,
+    description: 'Role (admin can change roles)',
+  })
+  @IsOptional()
+  @IsEnum([UserRole.ADMIN, UserRole.SALES])
+  role?: UserRole;
 }
 
 export class StaffResponseDto {

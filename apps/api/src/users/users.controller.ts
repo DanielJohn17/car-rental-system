@@ -44,45 +44,6 @@ export interface JwtPayload {
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post('me/stripe/connect')
-  @UseGuards(createRoleGuard([UserRole.ADMIN]))
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Create Stripe Connect account for current admin',
-    description:
-      'Creates (if missing) a Stripe Express Connect account for the logged-in admin and returns an onboarding URL. Admin only.',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Stripe Connect account created / onboarding link generated',
-  })
-  async connectStripeForMe(
-    @CurrentUser() user: JwtPayload,
-  ): Promise<{ stripeConnectAccountId: string; onboardingUrl: string }> {
-    return this.usersService.connectStripeAccountForAdmin(user.sub);
-  }
-
-  @Get('me/stripe/connect/status')
-  @UseGuards(createRoleGuard([UserRole.ADMIN]))
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Get Stripe Connect onboarding status for current admin',
-    description:
-      'Fetches the connected account status from Stripe directly (does not cache in the database). Admin only.',
-  })
-  @ApiResponse({
-    status: HttpStatus.OK,
-    description: 'Stripe Connect status',
-  })
-  async getStripeConnectStatusForMe(@CurrentUser() user: JwtPayload): Promise<{
-    stripeConnectAccountId: string | null;
-    readyToProcessPayments: boolean;
-    requirementsStatus: string | undefined;
-    onboardingComplete: boolean;
-  }> {
-    return this.usersService.getStripeConnectStatusForAdmin(user.sub);
-  }
-
   @Post()
   @UseGuards(createRoleGuard([UserRole.ADMIN]))
   @HttpCode(HttpStatus.CREATED)

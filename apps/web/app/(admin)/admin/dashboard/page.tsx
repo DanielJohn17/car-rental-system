@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
 import { PageContainer } from "../../../../components/page-container";
-import { InlineError } from "../../../../components/inline-error";
 import { Button } from "../../../../components/ui/button";
 import { Badge } from "../../../../components/ui/badge";
 import {
@@ -49,8 +48,6 @@ export default async function AdminDashboardPage() {
   if (!token) {
     redirect("/admin/login");
   }
-
-  const stripeError: string | undefined = undefined;
 
   let overview: DashboardOverview;
 
@@ -99,14 +96,6 @@ export default async function AdminDashboardPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <div className="flex items-center gap-2">
-          <form action="/api/admin/stripe/connect" method="post">
-            <Button type="submit" variant="outline">
-              Connect Stripe
-            </Button>
-          </form>
-          <Button asChild variant="outline">
-            <Link href="/admin/stripe-connect-demo">Stripe Connect demo</Link>
-          </Button>
           <form action="/api/admin/logout" method="post">
             <Button type="submit" variant="secondary">
               Logout
@@ -114,8 +103,6 @@ export default async function AdminDashboardPage() {
           </form>
         </div>
       </div>
-
-      <InlineError message={stripeError} className="mb-4" />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

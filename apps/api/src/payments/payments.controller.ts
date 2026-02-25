@@ -1,13 +1,10 @@
-import type { Request } from 'express';
 import {
   Controller,
   Post,
   Get,
   Body,
   Param,
-  Headers,
   UseGuards,
-  Req,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -22,14 +19,9 @@ import { JwtGuard } from '../auth/guards/jwt.guard';
 import { createRoleGuard } from '../auth/guards/role.guard';
 import { UserRole } from '../auth/entities/user.entity';
 import {
-  CreatePaymentIntentDto,
-  CreateCheckoutSessionDto,
-  PaymentIntentResponseDto,
-  CheckoutSessionResponseDto,
+  CreatePaymentDto,
   PaymentStatusDto,
 } from './dtos';
-import type { PaymentIntentSucceededPayload } from '@car-rental/types';
-import { StripeService } from './services/stripe.service';
 
 const SalesGuard = createRoleGuard([UserRole.SALES, UserRole.ADMIN]);
 
@@ -38,28 +30,26 @@ const SalesGuard = createRoleGuard([UserRole.SALES, UserRole.ADMIN]);
 export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
-    private readonly stripeService: StripeService,
   ) {}
 
   /**
-   * Create a Stripe PaymentIntent for deposit payment
-   * POST /payments/create-intent
+   * Create a payment record
+   * POST /payments
    * Public endpoint - no auth required
    */
-  @Post('create-intent')
+  @Post()
   @ApiOperation({
-    summary: 'Create payment intent for deposit',
-    description:
-      'Creates a Stripe PaymentIntent for the booking deposit. Returns client_secret for frontend payment element. Public endpoint.',
+    summary: 'Create payment record',
+    description: 'Creates a payment record for a booking. Returns payment details. Public endpoint.',
   })
   @ApiBody({
-    type: CreatePaymentIntentDto,
-    description: 'Booking ID and deposit amount',
+    type: CreatePaymentDto,
+    description: 'Booking ID and payment amount',
   })
   @ApiResponse({
     status: 200,
-    type: PaymentIntentResponseDto,
-    description: 'PaymentIntent created successfully',
+    type: PaymentStatusDto,
+    description: 'Payment created successfully',
   })
   @ApiResponse({
     status: 404,
@@ -69,81 +59,44 @@ export class PaymentsController {
     status: 400,
     description: 'Invalid booking status or amount mismatch',
   })
-  async createPaymentIntent(
-    @Body() createDto: CreatePaymentIntentDto,
-  ): Promise<PaymentIntentResponseDto> {
-    return this.paymentsService.createPaymentIntent(createDto);
-  }
-
-  @Post('create-checkout-session')
-  @ApiOperation({
-    summary: 'Create Stripe Checkout Session for deposit',
-    description:
-      'Creates a Stripe Checkout Session URL for the booking deposit. Public endpoint.',
-  })
-  @ApiBody({
-    type: CreateCheckoutSessionDto,
-    description: 'Booking ID and deposit amount',
-  })
-  @ApiResponse({
-    status: 200,
-    type: CheckoutSessionResponseDto,
-    description: 'Checkout Session created successfully',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Booking not found',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid booking status or amount mismatch',
-  })
-  async createCheckoutSession(
-    @Body() createDto: CreateCheckoutSessionDto,
-  ): Promise<CheckoutSessionResponseDto> {
-    return this.paymentsService.createCheckoutSession(createDto);
+  async createPayment(
+    @Body() createDto: CreatePaymentDto,
+  ): Promise<PaymentStatusDto> {
+    return this.paymentsService.createPayment(createDto);
   }
 
   /**
-   * Stripe webhook handler
-   * POST /payments/webhook
-   * No auth required - Stripe signature verification instead
+   * Confirm a payment (mark as paid)
+   * POST /payments/:id/confirm
    */
-  @Post('webhook')
+  @Post(':id/confirm')
+  @UseGuards(JwtGuard, SalesGuard)
+  @ApiBearerAuth('JWT')
   @ApiOperation({
-    summary: 'Stripe webhook receiver',
-    description:
-      'Receives Stripe payment events (requires Stripe signature header)',
+    summary: 'Confirm payment',
+    description: 'Mark a payment as paid. Sales/Admin only.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Payment ID (UUID)',
   })
   @ApiResponse({
     status: 200,
-    description: 'Webhook processed successfully',
+    type: PaymentStatusDto,
+    description: 'Payment confirmed successfully',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Payment not found',
   })
   @ApiResponse({
     status: 400,
-    description: 'Invalid webhook signature',
+    description: 'Payment cannot be confirmed in current status',
   })
-  async handleStripeWebhook(
-    @Req() request: Request,
-    @Headers('stripe-signature') signature: string,
-  ): Promise<{ received: boolean }> {
-    // Get raw body from request (should be buffered by middleware)
-    const body = (request as any).rawBody || JSON.stringify(request.body);
-
-    try {
-      const event = this.stripeService.constructWebhookEvent(body, signature);
-
-      // Handle payment_intent.succeeded event
-      if (event.type === 'payment_intent.succeeded') {
-        await this.paymentsService.handlePaymentIntentSucceeded(
-          event as PaymentIntentSucceededPayload,
-        );
-      }
-
-      return { received: true };
-    } catch (error) {
-      throw error;
-    }
+  async confirmPayment(
+    @Param('id') paymentId: string,
+  ): Promise<PaymentStatusDto> {
+    return this.paymentsService.confirmPayment(paymentId);
   }
 
   /**
@@ -189,8 +142,7 @@ export class PaymentsController {
   @ApiBearerAuth('JWT')
   @ApiOperation({
     summary: 'Get payment by booking ID',
-    description:
-      'Get payment details for a specific booking. Sales/Admin only.',
+    description: 'Get payment details for a specific booking. Sales/Admin only.',
   })
   @ApiParam({
     name: 'bookingId',
@@ -224,8 +176,7 @@ export class PaymentsController {
   @ApiBearerAuth('JWT')
   @ApiOperation({
     summary: 'Refund payment',
-    description:
-      'Refund a paid deposit payment. Updates booking status back to PENDING. Sales/Admin only.',
+    description: 'Refund a paid payment. Updates booking status back to PENDING. Sales/Admin only.',
   })
   @ApiParam({
     name: 'bookingId',

@@ -28,8 +28,8 @@ export class PaymentStatusDto {
   status: PaymentStatus;
 
   @ApiProperty({
-    description: 'Stripe transaction ID',
-    example: 'pi_1234567890',
+    description: 'Transaction ID',
+    example: 'txn_1234567890',
     nullable: true,
   })
   transactionId: string | null;

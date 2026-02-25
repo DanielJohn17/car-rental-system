@@ -11,7 +11,7 @@ export default function SuccessPage() {
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
           <h1 style={{ fontSize: 28, fontWeight: 700 }}>Payment succeeded</h1>
           <p style={{ marginTop: 8, color: "#555" }}>
-            Stripe Checkout redirected you back to the site.
+            Payment completed successfully.
           </p>
           <div style={{ marginTop: 14 }}>
             <Link

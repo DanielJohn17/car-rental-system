@@ -67,7 +67,7 @@ export class Booking {
   depositAmount: number;
 
   @Column({ nullable: true })
-  stripePaymentId: string;
+  paymentReference: string;
 
   // Status & Approval
   @Column({

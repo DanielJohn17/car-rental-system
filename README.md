@@ -41,21 +41,11 @@ DATABASE_URL=postgresql://username:password@localhost:5432/car_rental
 # Auth
 JWT_SECRET=replace_me_with_a_long_random_string
 
-# Public web URL (used to build Stripe success/cancel URLs)
+# Public web URL
 WEB_APP_URL=http://localhost:3000
 
 # Payments
 COMMISSION_PERCENTAGE=10
-
-# Stripe (optional; required for payment flows)
-STRIPE_API_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_THIN_WEBHOOK_SECRET=whsec_...
-
-# Stripe (optional; only for Connect demo / subscriptions)
-STRIPE_ADMIN_ACCOUNT_ID=
-STRIPE_STORE_APP_FEE_CENTS=123
-STRIPE_SUBSCRIPTION_PRICE_ID=price_...
 
 # Email (optional)
 RESEND_API_KEY=

@@ -61,9 +61,6 @@ export class Payment {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   commissionAmount: number | null;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  stripeConnectedAccountId: string | null;
-
   @CreateDateColumn()
   createdAt: Date;
 
