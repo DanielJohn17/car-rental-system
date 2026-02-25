@@ -7,6 +7,7 @@ import {
   Body,
   Query,
   UseGuards,
+  ValidationPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,7 +22,13 @@ import { JwtGuard } from '../auth/guards/jwt.guard';
 import { createRoleGuard } from '../auth/guards/role.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '../auth/entities/user.entity';
-import { CreateBookingDto, UpdateBookingStatusDto } from './dtos';
+import type { JwtPayload } from '../auth/types/jwt-payload.type';
+import {
+  BookingDecisionDto,
+  CreateBookingDto,
+  GetBookingsQueryDto,
+  UpdateBookingStatusDto,
+} from './dtos';
 import { Booking, BookingStatus } from './entities/booking.entity';
 
 @ApiTags('bookings')
@@ -89,14 +96,12 @@ export class BookingsController {
   })
   @ApiResponse({ status: 200, description: 'List of bookings' })
   async findAll(
-    @Query('status') status?: BookingStatus,
-    @Query('limit') limit: string = '20',
-    @Query('offset') offset: string = '0',
-  ) {
-    return await this.bookingsService.findAll(
-      status,
-      parseInt(limit),
-      parseInt(offset),
+    @Query(ValidationPipe) query: GetBookingsQueryDto,
+  ): Promise<{ data: Booking[]; total: number }> {
+    return this.bookingsService.findAll(
+      query.status,
+      query.limit ?? 20,
+      query.offset ?? 0,
     );
   }
 
@@ -118,7 +123,13 @@ export class BookingsController {
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
   @ApiOperation({ summary: 'Get booking statistics (Admin only)' })
   @ApiResponse({ status: 200, description: 'Booking statistics' })
-  async getStats() {
+  async getStats(): Promise<{
+    pending: number;
+    approved: number;
+    ongoing: number;
+    completed: number;
+    cancelled: number;
+  }> {
     return this.bookingsService.getStats();
   }
 
@@ -129,7 +140,7 @@ export class BookingsController {
   @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
   @ApiOperation({ summary: 'Get total revenue (Admin only)' })
   @ApiResponse({ status: 200, description: 'Total deposit revenue' })
-  async getTotalRevenue() {
+  async getTotalRevenue(): Promise<{ totalRevenue: number }> {
     return { totalRevenue: await this.bookingsService.getTotalRevenue() };
   }
 
@@ -171,10 +182,10 @@ export class BookingsController {
   @ApiResponse({ status: 404, description: 'Booking not found' })
   async approve(
     @Param('id') id: string,
-    @Body('notes') notes: string,
-    @CurrentUser() user: any,
+    @Body(ValidationPipe) body: BookingDecisionDto,
+    @CurrentUser() user: JwtPayload,
   ): Promise<Booking> {
-    return this.bookingsService.approve(id, user.id, notes);
+    return this.bookingsService.approve(id, user.sub, body.notes);
   }
 
   /**
@@ -202,10 +213,10 @@ export class BookingsController {
   @ApiResponse({ status: 404, description: 'Booking not found' })
   async reject(
     @Param('id') id: string,
-    @Body('notes') notes: string,
-    @CurrentUser() user: any,
+    @Body(ValidationPipe) body: BookingDecisionDto,
+    @CurrentUser() user: JwtPayload,
   ): Promise<Booking> {
-    return this.bookingsService.reject(id, user.id, notes);
+    return this.bookingsService.reject(id, user.sub, body.notes);
   }
 
   /**
@@ -238,9 +249,9 @@ export class BookingsController {
   async updateStatus(
     @Param('id') id: string,
     @Body() updateDto: UpdateBookingStatusDto,
-    @CurrentUser() user: any,
+    @CurrentUser() user: JwtPayload,
   ): Promise<Booking> {
-    return this.bookingsService.updateStatus(id, updateDto, user.id);
+    return this.bookingsService.updateStatus(id, updateDto, user.sub);
   }
 
   /**

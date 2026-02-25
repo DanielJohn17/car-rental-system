@@ -10,15 +10,27 @@ import { Vehicle, VehicleStatus } from '../vehicle/entities/vehicle.entity';
 import { Location } from '../locations/entities/location.entity';
 import { CreateBookingDto, UpdateBookingStatusDto } from './dtos';
 
+const ALLOWED_BOOKING_STATUS_TRANSITIONS: Record<
+  BookingStatus,
+  BookingStatus[]
+> = {
+  [BookingStatus.PENDING]: [BookingStatus.APPROVED, BookingStatus.CANCELLED],
+  [BookingStatus.APPROVED]: [BookingStatus.ONGOING, BookingStatus.CANCELLED],
+  [BookingStatus.ONGOING]: [BookingStatus.COMPLETED, BookingStatus.OVERDUE],
+  [BookingStatus.COMPLETED]: [],
+  [BookingStatus.CANCELLED]: [],
+  [BookingStatus.OVERDUE]: [BookingStatus.COMPLETED],
+};
+
 @Injectable()
 export class BookingsService {
   constructor(
     @InjectRepository(Booking)
-    private bookingRepository: Repository<Booking>,
+    private readonly bookingRepository: Repository<Booking>,
     @InjectRepository(Vehicle)
-    private vehicleRepository: Repository<Vehicle>,
+    private readonly vehicleRepository: Repository<Vehicle>,
     @InjectRepository(Location)
-    private locationRepository: Repository<Location>,
+    private readonly locationRepository: Repository<Location>,
   ) {}
 
   /**
@@ -26,56 +38,81 @@ export class BookingsService {
    * Validates: vehicle exists, location exists, dates valid, availability
    */
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
-    // Validate dates
-    const startDate = new Date(createBookingDto.startDateTime);
-    const endDate = new Date(createBookingDto.endDateTime);
+    const { startDate, endDate } = this.parseBookingDates(createBookingDto);
+    this.validateBookingDates(startDate, endDate);
+    const vehicle: Vehicle = await this.getVehicleOrThrow(createBookingDto.vehicleId);
+    this.validateVehicleAvailability(vehicle);
+    await this.getLocationOrThrow(createBookingDto.pickupLocationId, 'Pickup');
+    await this.getLocationOrThrow(createBookingDto.returnLocationId, 'Return');
+    await this.ensureNoOverlappingBooking(createBookingDto.vehicleId, startDate, endDate);
+    this.validatePricing(createBookingDto.depositAmount, createBookingDto.totalPrice);
+    const booking: Booking = this.bookingRepository.create({
+      ...createBookingDto,
+      startDateTime: startDate,
+      endDateTime: endDate,
+      status: BookingStatus.PENDING,
+    });
+    return this.bookingRepository.save(booking);
+  }
 
+  private parseBookingDates(createBookingDto: CreateBookingDto): {
+    startDate: Date;
+    endDate: Date;
+  } {
+    return {
+      startDate: new Date(createBookingDto.startDateTime),
+      endDate: new Date(createBookingDto.endDateTime),
+    };
+  }
+
+  private validateBookingDates(startDate: Date, endDate: Date): void {
     if (startDate >= endDate) {
       throw new BadRequestException('Start date must be before end date');
     }
-
     if (startDate < new Date()) {
       throw new BadRequestException('Start date cannot be in the past');
     }
+  }
 
-    // Check vehicle exists
-    const vehicle = await this.vehicleRepository.findOne({
-      where: { id: createBookingDto.vehicleId },
+  private async getVehicleOrThrow(vehicleId: string): Promise<Vehicle> {
+    const vehicle: Vehicle | null = await this.vehicleRepository.findOne({
+      where: { id: vehicleId },
     });
-
     if (!vehicle) {
       throw new NotFoundException('Vehicle not found');
     }
+    return vehicle;
+  }
 
-    // Check vehicle is available for booking
+  private validateVehicleAvailability(vehicle: Vehicle): void {
     if (vehicle.status !== VehicleStatus.AVAILABLE) {
       throw new BadRequestException(
         `Vehicle is currently ${vehicle.status} and cannot be booked`,
       );
     }
+  }
 
-    // Check pickup location exists
-    const pickupLocation = await this.locationRepository.findOne({
-      where: { id: createBookingDto.pickupLocationId },
+  private async getLocationOrThrow(
+    locationId: string,
+    label: string,
+  ): Promise<Location> {
+    const location: Location | null = await this.locationRepository.findOne({
+      where: { id: locationId },
     });
-
-    if (!pickupLocation) {
-      throw new NotFoundException('Pickup location not found');
+    if (!location) {
+      throw new NotFoundException(`${label} location not found`);
     }
+    return location;
+  }
 
-    // Check return location exists
-    const returnLocation = await this.locationRepository.findOne({
-      where: { id: createBookingDto.returnLocationId },
-    });
-
-    if (!returnLocation) {
-      throw new NotFoundException('Return location not found');
-    }
-
-    // Check vehicle availability (no overlapping bookings)
-    const overlappingBooking = await this.bookingRepository.findOne({
+  private async ensureNoOverlappingBooking(
+    vehicleId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<void> {
+    const overlappingBooking: Booking | null = await this.bookingRepository.findOne({
       where: {
-        vehicleId: createBookingDto.vehicleId,
+        vehicleId,
         status: In([
           BookingStatus.PENDING,
           BookingStatus.APPROVED,
@@ -85,27 +122,17 @@ export class BookingsService {
         endDateTime: MoreThan(startDate),
       },
     });
-
     if (overlappingBooking) {
       throw new BadRequestException(
         'Vehicle is not available for the selected dates',
       );
     }
+  }
 
-    // Validate pricing
-    if (createBookingDto.depositAmount > createBookingDto.totalPrice) {
+  private validatePricing(depositAmount: number, totalPrice: number): void {
+    if (depositAmount > totalPrice) {
       throw new BadRequestException('Deposit amount cannot exceed total price');
     }
-
-    // Create booking
-    const booking = this.bookingRepository.create({
-      ...createBookingDto,
-      startDateTime: startDate,
-      endDateTime: endDate,
-      status: BookingStatus.PENDING,
-    });
-
-    return this.bookingRepository.save(booking);
   }
 
   /**
@@ -217,29 +244,7 @@ export class BookingsService {
     userId: string,
   ): Promise<Booking> {
     const booking = await this.findById(id);
-
-    // Validate status transition
-    const allowedTransitions: Record<BookingStatus, BookingStatus[]> = {
-      [BookingStatus.PENDING]: [
-        BookingStatus.APPROVED,
-        BookingStatus.CANCELLED,
-      ],
-      [BookingStatus.APPROVED]: [
-        BookingStatus.ONGOING,
-        BookingStatus.CANCELLED,
-      ],
-      [BookingStatus.ONGOING]: [BookingStatus.COMPLETED, BookingStatus.OVERDUE],
-      [BookingStatus.COMPLETED]: [],
-      [BookingStatus.CANCELLED]: [],
-      [BookingStatus.OVERDUE]: [BookingStatus.COMPLETED],
-    };
-
-    if (!allowedTransitions[booking.status].includes(updateDto.status)) {
-      throw new BadRequestException(
-        `Cannot transition from ${booking.status} to ${updateDto.status}. Allowed transitions: ${allowedTransitions[booking.status].join(', ')}`,
-      );
-    }
-
+    this.validateBookingStatusTransition(booking.status, updateDto.status);
     booking.status = updateDto.status;
     if (updateDto.notes) {
       booking.notes = updateDto.notes;
@@ -249,6 +254,19 @@ export class BookingsService {
     }
 
     return this.bookingRepository.save(booking);
+  }
+
+  private validateBookingStatusTransition(
+    from: BookingStatus,
+    to: BookingStatus,
+  ): void {
+    const allowedTransitions: BookingStatus[] =
+      ALLOWED_BOOKING_STATUS_TRANSITIONS[from];
+    if (!allowedTransitions.includes(to)) {
+      throw new BadRequestException(
+        `Cannot transition from ${from} to ${to}. Allowed transitions: ${allowedTransitions.join(', ')}`,
+      );
+    }
   }
 
   /**
