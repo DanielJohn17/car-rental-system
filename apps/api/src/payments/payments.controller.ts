@@ -27,6 +27,9 @@ const SalesGuard = createRoleGuard([UserRole.SALES, UserRole.ADMIN]);
 
 @ApiTags('payments')
 @Controller('payments')
+/**
+ * Payment management endpoints.
+ */
 export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
@@ -100,40 +103,6 @@ export class PaymentsController {
   }
 
   /**
-   * Get payment status by payment ID (Sales/Admin only)
-   * GET /payments/:id
-   */
-  @Get(':id')
-  @UseGuards(JwtGuard, SalesGuard)
-  @ApiBearerAuth('JWT')
-  @ApiOperation({
-    summary: 'Get payment status',
-    description: 'Get payment details and status. Sales/Admin only.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'Payment ID (UUID)',
-  })
-  @ApiResponse({
-    status: 200,
-    type: PaymentStatusDto,
-    description: 'Payment details',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Payment not found',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized',
-  })
-  async getPaymentStatus(
-    @Param('id') paymentId: string,
-  ): Promise<PaymentStatusDto> {
-    return this.paymentsService.getPaymentStatus(paymentId);
-  }
-
-  /**
    * Get payment by booking ID (Sales/Admin only)
    * GET /payments/booking/:bookingId
    */
@@ -165,6 +134,40 @@ export class PaymentsController {
     @Param('bookingId') bookingId: string,
   ): Promise<PaymentStatusDto> {
     return this.paymentsService.getPaymentByBookingId(bookingId);
+  }
+
+  /**
+   * Get payment status by payment ID (Sales/Admin only)
+   * GET /payments/:id
+   */
+  @Get(':id')
+  @UseGuards(JwtGuard, SalesGuard)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({
+    summary: 'Get payment status',
+    description: 'Get payment details and status. Sales/Admin only.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Payment ID (UUID)',
+  })
+  @ApiResponse({
+    status: 200,
+    type: PaymentStatusDto,
+    description: 'Payment details',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Payment not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  async getPaymentStatus(
+    @Param('id') paymentId: string,
+  ): Promise<PaymentStatusDto> {
+    return this.paymentsService.getPaymentStatus(paymentId);
   }
 
   /**

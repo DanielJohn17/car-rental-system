@@ -16,10 +16,90 @@ export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
   constructor(
-    private emailService: EmailService,
+    private readonly emailService: EmailService,
     @InjectRepository(Booking)
-    private bookingRepository: Repository<Booking>,
+    private readonly bookingRepository: Repository<Booking>,
   ) {}
+
+  private buildEmailForNotification(dto: SendNotificationDto): {
+    subject: string;
+    html: string;
+  } {
+    switch (dto.type) {
+      case NotificationType.BOOKING_CREATED:
+        return {
+          subject: 'Booking Confirmation - Your Car Rental',
+          html: this.emailService.generateBookingConfirmationHtml({
+            guestName: dto.guestName || 'Valued Customer',
+            bookingReference: this.generateReferenceNumber(dto.bookingId),
+            vehicleDetails: dto.vehicleDetails || 'Vehicle TBD',
+            pickupLocation: 'Your Selected Location',
+            pickupDate: dto.pickupDate || 'TBD',
+            returnDate: dto.returnDate || 'TBD',
+            totalPrice: dto.totalAmount || 0,
+            depositAmount: dto.depositAmount || 0,
+            depositPaid: true,
+          }),
+        };
+      case NotificationType.BOOKING_APPROVED:
+        return {
+          subject: 'Booking Approved - Car Rental Confirmation',
+          html: this.emailService.generateApprovedHtml({
+            guestName: dto.guestName || 'Valued Customer',
+            bookingReference: this.generateReferenceNumber(dto.bookingId),
+            vehicleDetails: dto.vehicleDetails || 'Vehicle TBD',
+            pickupLocation: 'Your Selected Location',
+            pickupDate: dto.pickupDate || 'TBD',
+            notes: dto.approvalNotes,
+          }),
+        };
+      case NotificationType.BOOKING_REJECTED:
+        return {
+          subject: 'Booking Status Update - Car Rental',
+          html: this.emailService.generateRejectedHtml({
+            guestName: dto.guestName || 'Valued Customer',
+            bookingReference: this.generateReferenceNumber(dto.bookingId),
+            reason: dto.rejectionReason,
+          }),
+        };
+      case NotificationType.BOOKING_COMPLETED:
+        return {
+          subject: 'Thank You - Rental Completed',
+          html: this.emailService.generateCompletionHtml({
+            guestName: dto.guestName || 'Valued Customer',
+            bookingReference: this.generateReferenceNumber(dto.bookingId),
+            vehicleDetails: dto.vehicleDetails || 'Vehicle',
+            returnDate: dto.returnDate || 'TBD',
+          }),
+        };
+      case NotificationType.PAYMENT_CONFIRMED:
+        return {
+          subject: 'Payment Confirmed - Car Rental Booking',
+          html: this.emailService.generateBookingConfirmationHtml({
+            guestName: dto.guestName || 'Valued Customer',
+            bookingReference: this.generateReferenceNumber(dto.bookingId),
+            vehicleDetails: dto.vehicleDetails || 'Vehicle TBD',
+            pickupLocation: 'Your Selected Location',
+            pickupDate: dto.pickupDate || 'TBD',
+            returnDate: dto.returnDate || 'TBD',
+            totalPrice: dto.totalAmount || 0,
+            depositAmount: dto.depositAmount || 0,
+            depositPaid: true,
+          }),
+        };
+      case NotificationType.REMINDER_PICKUP:
+        return {
+          subject: 'Reminder - Your Rental Pickup is Soon',
+          html: `
+            <p>Dear ${dto.guestName || 'Valued Customer'},</p>
+            <p>This is a reminder that your rental pickup is scheduled for ${dto.pickupDate}.</p>
+            <p>Please make sure to have your valid ID and insurance documents ready.</p>
+          `,
+        };
+      default:
+        throw new BadRequestException(`Unknown notification type: ${dto.type}`);
+    }
+  }
 
   /**
    * Send notification based on type
@@ -33,85 +113,7 @@ export class NotificationsService {
     }
 
     try {
-      let subject = '';
-      let html = '';
-
-      switch (dto.type) {
-        case NotificationType.BOOKING_CREATED:
-          subject = 'Booking Confirmation - Your Car Rental';
-          html = this.emailService.generateBookingConfirmationHtml({
-            guestName: dto.guestName || 'Valued Customer',
-            bookingReference: this.generateReferenceNumber(dto.bookingId),
-            vehicleDetails: dto.vehicleDetails || 'Vehicle TBD',
-            pickupLocation: 'Your Selected Location',
-            pickupDate: dto.pickupDate || 'TBD',
-            returnDate: dto.returnDate || 'TBD',
-            totalPrice: dto.totalAmount || 0,
-            depositAmount: dto.depositAmount || 0,
-            depositPaid: true,
-          });
-          break;
-
-        case NotificationType.BOOKING_APPROVED:
-          subject = 'Booking Approved - Car Rental Confirmation';
-          html = this.emailService.generateApprovedHtml({
-            guestName: dto.guestName || 'Valued Customer',
-            bookingReference: this.generateReferenceNumber(dto.bookingId),
-            vehicleDetails: dto.vehicleDetails || 'Vehicle TBD',
-            pickupLocation: 'Your Selected Location',
-            pickupDate: dto.pickupDate || 'TBD',
-            notes: dto.approvalNotes,
-          });
-          break;
-
-        case NotificationType.BOOKING_REJECTED:
-          subject = 'Booking Status Update - Car Rental';
-          html = this.emailService.generateRejectedHtml({
-            guestName: dto.guestName || 'Valued Customer',
-            bookingReference: this.generateReferenceNumber(dto.bookingId),
-            reason: dto.rejectionReason,
-          });
-          break;
-
-        case NotificationType.BOOKING_COMPLETED:
-          subject = 'Thank You - Rental Completed';
-          html = this.emailService.generateCompletionHtml({
-            guestName: dto.guestName || 'Valued Customer',
-            bookingReference: this.generateReferenceNumber(dto.bookingId),
-            vehicleDetails: dto.vehicleDetails || 'Vehicle',
-            returnDate: dto.returnDate || 'TBD',
-          });
-          break;
-
-        case NotificationType.PAYMENT_CONFIRMED:
-          subject = 'Payment Confirmed - Car Rental Booking';
-          html = this.emailService.generateBookingConfirmationHtml({
-            guestName: dto.guestName || 'Valued Customer',
-            bookingReference: this.generateReferenceNumber(dto.bookingId),
-            vehicleDetails: dto.vehicleDetails || 'Vehicle TBD',
-            pickupLocation: 'Your Selected Location',
-            pickupDate: dto.pickupDate || 'TBD',
-            returnDate: dto.returnDate || 'TBD',
-            totalPrice: dto.totalAmount || 0,
-            depositAmount: dto.depositAmount || 0,
-            depositPaid: true,
-          });
-          break;
-
-        case NotificationType.REMINDER_PICKUP:
-          subject = 'Reminder - Your Rental Pickup is Soon';
-          html = `
-            <p>Dear ${dto.guestName || 'Valued Customer'},</p>
-            <p>This is a reminder that your rental pickup is scheduled for ${dto.pickupDate}.</p>
-            <p>Please make sure to have your valid ID and insurance documents ready.</p>
-          `;
-          break;
-
-        default:
-          throw new BadRequestException(
-            `Unknown notification type: ${dto.type}`,
-          );
-      }
+      const { subject, html } = this.buildEmailForNotification(dto);
 
       // Send email
       const result = await this.emailService.send({

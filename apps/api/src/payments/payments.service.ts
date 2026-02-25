@@ -17,16 +17,59 @@ import {
   PaymentStatusDto,
 } from './dtos';
 
+const MANUAL_TRANSACTION_PREFIX = 'manual_' as const;
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
 
   constructor(
     @InjectRepository(Payment)
-    private paymentRepository: Repository<Payment>,
+    private readonly paymentRepository: Repository<Payment>,
     @InjectRepository(Booking)
-    private bookingRepository: Repository<Booking>,
+    private readonly bookingRepository: Repository<Booking>,
   ) {}
+
+  private mapToStatusDto(payment: Payment): PaymentStatusDto {
+    return {
+      id: payment.id,
+      bookingId: payment.bookingId,
+      amount: Number(payment.amount),
+      status: payment.status,
+      transactionId: payment.transactionId || null,
+      paidAt: payment.paidAt || null,
+      createdAt: payment.createdAt,
+    };
+  }
+
+  private async getPaymentOrThrow(paymentId: string): Promise<Payment> {
+    const payment: Payment | null = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+    });
+    if (!payment) {
+      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
+    }
+    return payment;
+  }
+
+  private validateBookingPayable(booking: Booking): void {
+    if (booking.status !== BookingStatus.PENDING) {
+      throw new BadRequestException(
+        `Cannot create payment for booking with status ${booking.status}. Only PENDING bookings can be paid.`,
+      );
+    }
+  }
+
+  private validateDepositAmountMatches(
+    requestedAmountInCents: number,
+    bookingDepositAmount: number,
+  ): void {
+    if (requestedAmountInCents !== Math.round(Number(bookingDepositAmount) * 100)) {
+      throw new BadRequestException(
+        `Amount must match booking deposit amount (${bookingDepositAmount} USD)`,
+      );
+    }
+  }
 
   /**
    * Create a payment record
@@ -42,18 +85,8 @@ export class PaymentsService {
       );
     }
 
-    if (booking.status !== BookingStatus.PENDING) {
-      throw new BadRequestException(
-        `Cannot create payment for booking with status ${booking.status}. Only PENDING bookings can be paid.`,
-      );
-    }
-
-    // Validate amount matches deposit
-    if (createDto.amount !== Math.round(Number(booking.depositAmount) * 100)) {
-      throw new BadRequestException(
-        `Amount must match booking deposit amount (${booking.depositAmount} USD)`,
-      );
-    }
+    this.validateBookingPayable(booking);
+    this.validateDepositAmountMatches(createDto.amount, Number(booking.depositAmount));
 
     const existingPayment = await this.paymentRepository.findOne({
       where: { bookingId: createDto.bookingId },
@@ -78,28 +111,14 @@ export class PaymentsService {
 
     await this.paymentRepository.save(payment);
 
-    return {
-      id: payment.id,
-      bookingId: payment.bookingId,
-      amount: Number(payment.amount),
-      status: payment.status,
-      transactionId: payment.transactionId || null,
-      paidAt: payment.paidAt || null,
-      createdAt: payment.createdAt,
-    };
+    return this.mapToStatusDto(payment);
   }
 
   /**
    * Confirm a payment (mark as paid)
    */
   async confirmPayment(paymentId: string): Promise<PaymentStatusDto> {
-    const payment = await this.paymentRepository.findOne({
-      where: { id: paymentId },
-    });
-
-    if (!payment) {
-      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
-    }
+    const payment: Payment = await this.getPaymentOrThrow(paymentId);
 
     if (payment.status !== PaymentStatus.PENDING) {
       throw new BadRequestException(
@@ -109,7 +128,7 @@ export class PaymentsService {
 
     payment.status = PaymentStatus.PAID;
     payment.paidAt = new Date();
-    payment.transactionId = `manual_${Date.now()}`;
+    payment.transactionId = `${MANUAL_TRANSACTION_PREFIX}${Date.now()}`;
     await this.paymentRepository.save(payment);
 
     // Update Booking status to APPROVED
@@ -126,38 +145,15 @@ export class PaymentsService {
       );
     }
 
-    return {
-      id: payment.id,
-      bookingId: payment.bookingId,
-      amount: Number(payment.amount),
-      status: payment.status,
-      transactionId: payment.transactionId,
-      paidAt: payment.paidAt,
-      createdAt: payment.createdAt,
-    };
+    return this.mapToStatusDto(payment);
   }
 
   /**
    * Get payment status
    */
   async getPaymentStatus(paymentId: string): Promise<PaymentStatusDto> {
-    const payment = await this.paymentRepository.findOne({
-      where: { id: paymentId },
-    });
-
-    if (!payment) {
-      throw new NotFoundException(`Payment with ID ${paymentId} not found`);
-    }
-
-    return {
-      id: payment.id,
-      bookingId: payment.bookingId,
-      amount: Number(payment.amount),
-      status: payment.status,
-      transactionId: payment.transactionId || null,
-      paidAt: payment.paidAt || null,
-      createdAt: payment.createdAt,
-    };
+    const payment: Payment = await this.getPaymentOrThrow(paymentId);
+    return this.mapToStatusDto(payment);
   }
 
   /**
@@ -172,15 +168,7 @@ export class PaymentsService {
       throw new NotFoundException(`Payment for booking ${bookingId} not found`);
     }
 
-    return {
-      id: payment.id,
-      bookingId: payment.bookingId,
-      amount: Number(payment.amount),
-      status: payment.status,
-      transactionId: payment.transactionId || null,
-      paidAt: payment.paidAt || null,
-      createdAt: payment.createdAt,
-    };
+    return this.mapToStatusDto(payment);
   }
 
   /**
@@ -215,14 +203,6 @@ export class PaymentsService {
       await this.bookingRepository.save(booking);
     }
 
-    return {
-      id: payment.id,
-      bookingId: payment.bookingId,
-      amount: Number(payment.amount),
-      status: payment.status,
-      transactionId: payment.transactionId,
-      paidAt: payment.paidAt || null,
-      createdAt: payment.createdAt,
-    };
+    return this.mapToStatusDto(payment);
   }
 }

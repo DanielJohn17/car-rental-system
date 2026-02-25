@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Param, ValidationPipe } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import {
@@ -40,7 +40,7 @@ export class NotificationsController {
     description: 'Internal server error - email service failed',
   })
   async send(
-    @Body() dto: SendNotificationDto,
+    @Body(ValidationPipe) dto: SendNotificationDto,
   ): Promise<NotificationResponseDto> {
     return this.notificationsService.sendNotification(dto);
   }
@@ -72,7 +72,7 @@ export class NotificationsController {
     description: 'Internal server error',
   })
   async sendBookingConfirmation(
-    @Body() booking: BookingNotificationDto,
+    @Body(ValidationPipe) booking: BookingNotificationDto,
   ): Promise<NotificationResponseDto> {
     return this.notificationsService.sendBookingConfirmation(booking);
   }
@@ -104,7 +104,7 @@ export class NotificationsController {
     description: 'Internal server error',
   })
   async sendBookingApproval(
-    @Body() approval: ApprovalNotificationDto,
+    @Body(ValidationPipe) approval: ApprovalNotificationDto,
   ): Promise<NotificationResponseDto> {
     return this.notificationsService.sendBookingApproval(approval);
   }
@@ -132,7 +132,7 @@ export class NotificationsController {
     description: 'Internal server error',
   })
   async sendBookingCompletion(
-    bookingId: string,
+    @Param('bookingId') bookingId: string,
   ): Promise<NotificationResponseDto> {
     return this.notificationsService.sendBookingCompletion(bookingId);
   }
@@ -160,7 +160,7 @@ export class NotificationsController {
     description: 'Internal server error',
   })
   async sendPaymentConfirmation(
-    bookingId: string,
+    @Param('bookingId') bookingId: string,
   ): Promise<NotificationResponseDto> {
     return this.notificationsService.sendPaymentConfirmation(bookingId);
   }
@@ -188,7 +188,7 @@ export class NotificationsController {
     description: 'Internal server error',
   })
   async sendPickupReminder(
-    bookingId: string,
+    @Param('bookingId') bookingId: string,
   ): Promise<NotificationResponseDto> {
     return this.notificationsService.sendPickupReminder(bookingId);
   }
