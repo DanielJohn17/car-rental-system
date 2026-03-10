@@ -7,6 +7,7 @@ import {
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AppCacheModule } from './core/cache/cache.module';
 import { DatabaseModule } from './core/database/database.module';
 import { LoggingModule } from './core/logging/logging.module';
 import { RequestIdMiddleware } from './core/logging/request-id.middleware';
@@ -28,6 +29,7 @@ import { HealthModule } from './modules/health/health.module';
       isGlobal: true,
       envFilePath: ['../../.env', '.env'],
     }),
+    AppCacheModule,
     DatabaseModule,
     LoggingModule,
     ThrottlingModule,

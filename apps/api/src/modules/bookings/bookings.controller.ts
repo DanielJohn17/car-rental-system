@@ -31,9 +31,13 @@ import {
   UpdateBookingStatusDto,
 } from './dtos';
 import { Booking, BookingStatus } from './entities/booking.entity';
+import type { LimitOffsetPaginatedResponse } from '../../core/pagination/limit-offset-paginated-response.type';
 
 const PUBLIC_BOOKING_TTL_MS = 60_000;
 const PUBLIC_BOOKING_LIMIT = 20;
+
+const AdminOrSalesGuard = createRoleGuard([UserRole.ADMIN, UserRole.SALES]);
+const AdminGuard = createRoleGuard([UserRole.ADMIN]);
 
 @ApiTags('bookings')
 @Controller('bookings')
@@ -83,7 +87,7 @@ export class BookingsController {
    * Get bookings (ADMIN/SALES)
    */
   @Get()
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Get bookings (Admin/Sales only)' })
   @ApiQuery({
     name: 'status',
@@ -106,7 +110,7 @@ export class BookingsController {
   @ApiResponse({ status: 200, description: 'List of bookings' })
   async findAll(
     @Query(ValidationPipe) query: GetBookingsQueryDto,
-  ): Promise<{ data: Booking[]; total: number }> {
+  ): Promise<LimitOffsetPaginatedResponse<Booking>> {
     return this.bookingsService.findAll(
       query.status,
       query.limit ?? 20,
@@ -118,7 +122,7 @@ export class BookingsController {
    * Get pending bookings (ADMIN/SALES)
    */
   @Get('pending')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Get pending bookings (Admin/Sales only)' })
   @ApiResponse({ status: 200, description: 'List of pending bookings' })
   async getPendingBookings(): Promise<Booking[]> {
@@ -129,7 +133,7 @@ export class BookingsController {
    * Get booking statistics (ADMIN)
    */
   @Get('stats')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
+  @UseGuards(JwtGuard, AdminGuard)
   @ApiOperation({ summary: 'Get booking statistics (Admin only)' })
   @ApiResponse({ status: 200, description: 'Booking statistics' })
   async getStats(): Promise<{
@@ -146,7 +150,7 @@ export class BookingsController {
    * Get total revenue (ADMIN)
    */
   @Get('revenue')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
+  @UseGuards(JwtGuard, AdminGuard)
   @ApiOperation({ summary: 'Get total revenue (Admin only)' })
   @ApiResponse({ status: 200, description: 'Total deposit revenue' })
   async getTotalRevenue(): Promise<{ totalRevenue: number }> {
@@ -157,7 +161,7 @@ export class BookingsController {
    * Get booking by ID (ADMIN/SALES)
    */
   @Get(':id')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Get booking details (Admin/Sales only)' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiResponse({ status: 200, description: 'Booking details', type: Booking })
@@ -170,7 +174,7 @@ export class BookingsController {
    * Approve booking (ADMIN/SALES)
    */
   @Put(':id/approve')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Approve booking (Admin/Sales only)' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({
@@ -201,7 +205,7 @@ export class BookingsController {
    * Reject booking (ADMIN/SALES)
    */
   @Put(':id/reject')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Reject booking (Admin/Sales only)' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({
@@ -232,7 +236,7 @@ export class BookingsController {
    * Update booking status (ADMIN/SALES)
    */
   @Put(':id/status')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Update booking status (Admin/Sales only)' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({
@@ -267,7 +271,7 @@ export class BookingsController {
    * Complete booking (ADMIN/SALES)
    */
   @Put(':id/complete')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Mark booking as completed (Admin/Sales only)' })
   @ApiParam({ name: 'id', description: 'Booking UUID' })
   @ApiBody({

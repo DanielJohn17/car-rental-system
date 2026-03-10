@@ -1,18 +1,9 @@
-import { IsEnum, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsEnum, IsOptional } from 'class-validator';
 import { BookingStatus } from '../entities/booking.entity';
+import { LimitOffsetPaginationDto } from '../../../core/pagination/limit-offset-pagination.dto';
 
-export class GetBookingsQueryDto {
+export class GetBookingsQueryDto extends LimitOffsetPaginationDto {
   @IsOptional()
   @IsEnum(BookingStatus)
   status?: BookingStatus;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  limit?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  offset?: number;
 }

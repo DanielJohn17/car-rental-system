@@ -14,6 +14,8 @@ import {
   StaffResponseDto,
   StaffListResponseDto,
 } from './dtos/staff.dto';
+import { createLimitOffsetPaginatedResponse } from '../../core/pagination/create-limit-offset-paginated-response';
+import { normalizeLimitOffsetPagination } from '../../core/pagination/normalize-limit-offset-pagination';
 
 @Injectable()
 export class UsersService {
@@ -51,22 +53,27 @@ export class UsersService {
   }
 
   async getStaffMembers(
-    page: number = 1,
     limit: number = 10,
+    offset: number = 0,
   ): Promise<StaffListResponseDto> {
+    const pagination = normalizeLimitOffsetPagination(
+      { limit, offset },
+      { defaultLimit: 10, maxLimit: 100 },
+    );
     const [staff, total] = await this.userRepository.findAndCount({
       where: [{ role: UserRole.SALES }, { role: UserRole.ADMIN }],
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: pagination.offset,
+      take: pagination.limit,
       order: { createdAt: 'DESC' },
     });
 
-    return {
+    const response = createLimitOffsetPaginatedResponse({
       data: staff.map((s) => this.mapToResponseDto(s)),
       total,
-      page,
-      limit,
-    };
+      limit: pagination.limit,
+      offset: pagination.offset,
+    });
+    return response;
   }
 
   async getStaffById(id: string): Promise<StaffResponseDto> {

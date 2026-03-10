@@ -1,4 +1,10 @@
-import { Controller, Get, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Query,
+  ValidationPipe,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -16,10 +22,14 @@ import {
   FleetStatusSummaryDto,
   RecentBookingDto,
 } from './dtos';
+import { CursorPaginationDto } from '../../core/pagination/cursor-pagination.dto';
+import type { CursorPaginatedResponse } from '../../core/pagination/cursor-paginated-response.type';
+
+const AdminOrSalesGuard = createRoleGuard([UserRole.ADMIN, UserRole.SALES]);
 
 @ApiTags('dashboard')
 @Controller('dashboard')
-@UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+@UseGuards(JwtGuard, AdminOrSalesGuard)
 @ApiBearerAuth()
 export class DashboardController {
   constructor(private dashboardService: DashboardService) {}
@@ -158,5 +168,33 @@ export class DashboardController {
   ): Promise<RecentBookingDto[]> {
     const parsedLimit = Math.min(parseInt(limit, 10) || 10, 100);
     return this.dashboardService.getRecentBookings(parsedLimit);
+  }
+
+  @Get('recent-bookings/cursor')
+  @ApiOperation({
+    summary: 'Get recent bookings (cursor pagination)',
+    description:
+      'Returns cursor-paginated recent bookings ordered by creation date. Protected: Admin/Sales only.',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Page size (default: 10, max: 100)',
+    example: 10,
+  })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    type: String,
+    description: 'Cursor returned from previous page',
+  })
+  async getRecentBookingsCursor(
+    @Query(ValidationPipe) query: CursorPaginationDto,
+  ): Promise<CursorPaginatedResponse<RecentBookingDto>> {
+    return this.dashboardService.getRecentBookingsCursor({
+      limit: query.limit,
+      cursor: query.cursor,
+    });
   }
 }

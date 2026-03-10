@@ -11,8 +11,6 @@ import {
   ValidationPipe,
   HttpCode,
   HttpStatus,
-  DefaultValuePipe,
-  ParseIntPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -33,6 +31,10 @@ import { createRoleGuard } from '../auth/guards/role.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UserRole } from '../auth/entities/user.entity';
 import type { JwtPayload } from '../auth/types/jwt-payload.type';
+import { GetStaffMembersQueryDto } from './dtos/get-staff-members-query.dto';
+
+const AdminOrSalesGuard = createRoleGuard([UserRole.ADMIN, UserRole.SALES]);
+const AdminGuard = createRoleGuard([UserRole.ADMIN]);
 
 @ApiTags('Users (Admin & Sales Staff)')
 @ApiBearerAuth()
@@ -45,7 +47,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @UseGuards(createRoleGuard([UserRole.ADMIN]))
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Create a new sales staff member (Admin only)',
@@ -64,27 +66,29 @@ export class UsersController {
   }
 
   @Get()
-  @UseGuards(createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(AdminOrSalesGuard)
   @ApiOperation({
     summary: 'List all staff members (paginated)',
     description: 'Admin and Sales can view staff members',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({ name: 'offset', required: false, type: Number, example: 0 })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Staff members list',
     type: StaffListResponseDto,
   })
   async getStaffMembers(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query(ValidationPipe) query: GetStaffMembersQueryDto,
   ): Promise<StaffListResponseDto> {
-    return this.usersService.getStaffMembers(page, limit);
+    return this.usersService.getStaffMembers(
+      query.limit ?? 10,
+      query.offset ?? 0,
+    );
   }
 
   @Get(':id')
-  @UseGuards(createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(AdminOrSalesGuard)
   @ApiOperation({
     summary: 'Get staff member details',
     description: 'View a specific staff member profile',
@@ -100,7 +104,7 @@ export class UsersController {
   }
 
   @Put(':id')
-  @UseGuards(createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(AdminOrSalesGuard)
   @ApiOperation({
     summary: 'Update staff member profile',
     description: 'Users can update their own profile, admins can update anyone',
@@ -124,7 +128,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @UseGuards(createRoleGuard([UserRole.ADMIN]))
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Delete a staff member (Admin only)',

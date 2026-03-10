@@ -1,9 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking, BookingStatus } from '../bookings/entities/booking.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { Vehicle, VehicleStatus } from '../vehicle/entities/vehicle.entity';
+import { CursorCodec } from '../../core/pagination/cursor-codec';
+import type { CursorPaginatedResponse } from '../../core/pagination/cursor-paginated-response.type';
 import {
   DashboardOverviewDto,
   PendingApprovalDto,
@@ -21,45 +25,58 @@ export class DashboardService {
     private paymentRepository: Repository<Payment>,
     @InjectRepository(Vehicle)
     private vehicleRepository: Repository<Vehicle>,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
   ) {}
 
+  private readonly overviewCacheTtlSeconds: number = 30;
+
   async getOverview(): Promise<DashboardOverviewDto> {
-    // Count pending bookings
-    const pendingBookingsCount = await this.bookingRepository.count({
-      where: { status: BookingStatus.PENDING },
-    });
+    const cached =
+      await this.cacheManager.get<DashboardOverviewDto>('dashboard:overview');
+    if (cached) {
+      return cached;
+    }
+    const [
+      pendingBookingsCount,
+      activeRentalsCount,
+      revenueRow,
+      vehiclesInMaintenanceCount,
+      availableVehiclesCount,
+    ] = await Promise.all([
+      this.bookingRepository.count({
+        where: { status: BookingStatus.PENDING },
+      }),
+      this.bookingRepository.count({
+        where: { status: BookingStatus.ONGOING },
+      }),
+      this.paymentRepository
+        .createQueryBuilder('payment')
+        .select('COALESCE(SUM(payment.amount), 0)', 'totalRevenueFromDeposits')
+        .addSelect('COUNT(*)', 'totalDepositsPaid')
+        .where('payment.status = :status', { status: PaymentStatus.PAID })
+        .getRawOne<{
+          totalRevenueFromDeposits: string;
+          totalDepositsPaid: string;
+        }>(),
+      this.vehicleRepository.count({
+        where: { status: VehicleStatus.MAINTENANCE },
+      }),
+      this.vehicleRepository.count({
+        where: { status: VehicleStatus.AVAILABLE },
+      }),
+    ]);
 
-    // Count active rentals (ONGOING)
-    const activeRentalsCount = await this.bookingRepository.count({
-      where: { status: BookingStatus.ONGOING },
-    });
+    const pendingApprovalsCount: number = pendingBookingsCount;
+    const totalRevenueFromDeposits: number =
+      revenueRow?.totalRevenueFromDeposits
+        ? Number(revenueRow.totalRevenueFromDeposits)
+        : 0;
+    const totalDepositsPaid: number = revenueRow?.totalDepositsPaid
+      ? Number(revenueRow.totalDepositsPaid)
+      : 0;
 
-    // Count pending approvals
-    const pendingApprovalsCount = pendingBookingsCount;
-
-    // Calculate total revenue from paid deposits
-    const paidPayments = await this.paymentRepository.find({
-      where: { status: PaymentStatus.PAID },
-    });
-
-    const totalRevenueFromDeposits = paidPayments.reduce(
-      (sum, payment) => sum + Number(payment.amount),
-      0,
-    );
-
-    const totalDepositsPaid = paidPayments.length;
-
-    // Count vehicles in maintenance
-    const vehiclesInMaintenanceCount = await this.vehicleRepository.count({
-      where: { status: VehicleStatus.MAINTENANCE },
-    });
-
-    // Count available vehicles
-    const availableVehiclesCount = await this.vehicleRepository.count({
-      where: { status: VehicleStatus.AVAILABLE },
-    });
-
-    return {
+    const response: DashboardOverviewDto = {
       pendingBookingsCount,
       activeRentalsCount,
       totalRevenueFromDeposits,
@@ -68,6 +85,14 @@ export class DashboardService {
       vehiclesInMaintenanceCount,
       availableVehiclesCount,
     };
+
+    await this.cacheManager.set(
+      'dashboard:overview',
+      response,
+      this.overviewCacheTtlSeconds,
+    );
+
+    return response;
   }
 
   async getPendingApprovals(limit: number = 10): Promise<PendingApprovalDto[]> {
@@ -191,5 +216,75 @@ export class DashboardService {
         createdAt: booking.createdAt,
       };
     });
+  }
+
+  async getRecentBookingsCursor(params: {
+    limit?: number;
+    cursor?: string;
+  }): Promise<CursorPaginatedResponse<RecentBookingDto>> {
+    const rawLimit: number = params.limit ?? 10;
+    const limit: number = Math.min(Math.max(1, rawLimit), 100);
+
+    const cursorPayload = params.cursor
+      ? CursorCodec.decode<{ createdAt: string; id: string }>(
+          params.cursor,
+          (value: unknown): value is { createdAt: string; id: string } => {
+            if (!value || typeof value !== 'object') {
+              return false;
+            }
+            const record = value as Record<string, unknown>;
+            return (
+              typeof record.createdAt === 'string' &&
+              typeof record.id === 'string'
+            );
+          },
+        )
+      : null;
+
+    const query = this.bookingRepository.createQueryBuilder('booking');
+    query.leftJoinAndSelect('booking.vehicle', 'vehicle');
+    query.orderBy('booking.createdAt', 'DESC');
+    query.addOrderBy('booking.id', 'DESC');
+
+    if (cursorPayload) {
+      query.andWhere(
+        '(booking.createdAt < :createdAt OR (booking.createdAt = :createdAt AND booking.id < :id))',
+        {
+          createdAt: new Date(cursorPayload.createdAt),
+          id: cursorPayload.id,
+        },
+      );
+    }
+
+    const results = await query.take(limit + 1).getMany();
+    const hasMore: boolean = results.length > limit;
+    const pageItems: Booking[] = hasMore ? results.slice(0, limit) : results;
+    const data: RecentBookingDto[] = pageItems.map((booking) => {
+      const vehicleDisplay = booking.vehicle
+        ? `${booking.vehicle.make} ${booking.vehicle.model}`
+        : 'Unknown Vehicle';
+      return {
+        bookingId: booking.id,
+        guestName: booking.guestName || 'N/A',
+        guestPhone: booking.guestPhone,
+        vehicleDisplay,
+        startDateTime: booking.startDateTime,
+        endDateTime: booking.endDateTime,
+        status: booking.status || BookingStatus.PENDING,
+        totalPrice: Number(booking.totalPrice) || 0,
+        createdAt: booking.createdAt,
+      };
+    });
+
+    const lastItem: Booking | undefined = pageItems[pageItems.length - 1];
+    const nextCursor: string | null =
+      hasMore && lastItem
+        ? CursorCodec.encode({
+            createdAt: lastItem.createdAt.toISOString(),
+            id: lastItem.id,
+          })
+        : null;
+
+    return { data, limit, nextCursor };
   }
 }

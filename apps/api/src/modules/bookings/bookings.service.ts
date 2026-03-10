@@ -9,6 +9,9 @@ import { Booking, BookingStatus } from './entities/booking.entity';
 import { Vehicle, VehicleStatus } from '../vehicle/entities/vehicle.entity';
 import { Location } from '../locations/entities/location.entity';
 import { CreateBookingDto, UpdateBookingStatusDto } from './dtos';
+import type { LimitOffsetPaginatedResponse } from '../../core/pagination/limit-offset-paginated-response.type';
+import { createLimitOffsetPaginatedResponse } from '../../core/pagination/create-limit-offset-paginated-response';
+import { normalizeLimitOffsetPagination } from '../../core/pagination/normalize-limit-offset-pagination';
 
 const ALLOWED_BOOKING_STATUS_TRANSITIONS: Record<
   BookingStatus,
@@ -40,12 +43,21 @@ export class BookingsService {
   async create(createBookingDto: CreateBookingDto): Promise<Booking> {
     const { startDate, endDate } = this.parseBookingDates(createBookingDto);
     this.validateBookingDates(startDate, endDate);
-    const vehicle: Vehicle = await this.getVehicleOrThrow(createBookingDto.vehicleId);
+    const vehicle: Vehicle = await this.getVehicleOrThrow(
+      createBookingDto.vehicleId,
+    );
     this.validateVehicleAvailability(vehicle);
     await this.getLocationOrThrow(createBookingDto.pickupLocationId, 'Pickup');
     await this.getLocationOrThrow(createBookingDto.returnLocationId, 'Return');
-    await this.ensureNoOverlappingBooking(createBookingDto.vehicleId, startDate, endDate);
-    this.validatePricing(createBookingDto.depositAmount, createBookingDto.totalPrice);
+    await this.ensureNoOverlappingBooking(
+      createBookingDto.vehicleId,
+      startDate,
+      endDate,
+    );
+    this.validatePricing(
+      createBookingDto.depositAmount,
+      createBookingDto.totalPrice,
+    );
     const booking: Booking = this.bookingRepository.create({
       ...createBookingDto,
       startDateTime: startDate,
@@ -110,18 +122,19 @@ export class BookingsService {
     startDate: Date,
     endDate: Date,
   ): Promise<void> {
-    const overlappingBooking: Booking | null = await this.bookingRepository.findOne({
-      where: {
-        vehicleId,
-        status: In([
-          BookingStatus.PENDING,
-          BookingStatus.APPROVED,
-          BookingStatus.ONGOING,
-        ]),
-        startDateTime: LessThan(endDate),
-        endDateTime: MoreThan(startDate),
-      },
-    });
+    const overlappingBooking: Booking | null =
+      await this.bookingRepository.findOne({
+        where: {
+          vehicleId,
+          status: In([
+            BookingStatus.PENDING,
+            BookingStatus.APPROVED,
+            BookingStatus.ONGOING,
+          ]),
+          startDateTime: LessThan(endDate),
+          endDateTime: MoreThan(startDate),
+        },
+      });
     if (overlappingBooking) {
       throw new BadRequestException(
         'Vehicle is not available for the selected dates',
@@ -142,7 +155,8 @@ export class BookingsService {
     status?: BookingStatus,
     limit: number = 20,
     offset: number = 0,
-  ): Promise<{ data: Booking[]; total: number }> {
+  ): Promise<LimitOffsetPaginatedResponse<Booking>> {
+    const pagination = normalizeLimitOffsetPagination({ limit, offset });
     const query = this.bookingRepository.createQueryBuilder('booking');
 
     if (status) {
@@ -153,11 +167,16 @@ export class BookingsService {
     query.leftJoinAndSelect('booking.pickupLocation', 'pickupLocation');
     query.leftJoinAndSelect('booking.approver', 'approver');
     query.orderBy('booking.createdAt', 'DESC');
-    query.take(limit);
-    query.skip(offset);
+    query.take(pagination.limit);
+    query.skip(pagination.offset);
 
     const [data, total] = await query.getManyAndCount();
-    return { data, total };
+    return createLimitOffsetPaginatedResponse({
+      data,
+      total,
+      limit: pagination.limit,
+      offset: pagination.offset,
+    });
   }
 
   /**

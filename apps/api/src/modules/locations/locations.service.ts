@@ -7,6 +7,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Location } from './entities/location.entity';
 import { CreateLocationDto, UpdateLocationDto } from './dtos';
+import type { LimitOffsetPaginatedResponse } from '../../core/pagination/limit-offset-paginated-response.type';
+import { createLimitOffsetPaginatedResponse } from '../../core/pagination/create-limit-offset-paginated-response';
+import { normalizeLimitOffsetPagination } from '../../core/pagination/normalize-limit-offset-pagination';
 
 @Injectable()
 export class LocationsService {
@@ -21,14 +24,23 @@ export class LocationsService {
   async findAll(
     limit: number = 100,
     offset: number = 0,
-  ): Promise<{ data: Location[]; total: number }> {
+  ): Promise<LimitOffsetPaginatedResponse<Location>> {
+    const pagination = normalizeLimitOffsetPagination({
+      limit,
+      offset,
+    });
     const [data, total] = await this.locationRepository.findAndCount({
-      take: limit,
-      skip: offset,
+      take: pagination.limit,
+      skip: pagination.offset,
       order: { createdAt: 'DESC' },
     });
 
-    return { data, total };
+    return createLimitOffsetPaginatedResponse({
+      data,
+      total,
+      limit: pagination.limit,
+      offset: pagination.offset,
+    });
   }
 
   /**

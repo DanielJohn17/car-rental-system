@@ -113,7 +113,13 @@ export class StaffListResponseDto {
   total: number;
 
   @ApiProperty()
+  offset: number;
+
+  @ApiProperty()
   page: number;
+
+  @ApiProperty()
+  totalPages: number;
 
   @ApiProperty()
   limit: number;

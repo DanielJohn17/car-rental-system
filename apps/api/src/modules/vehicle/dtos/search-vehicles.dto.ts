@@ -4,12 +4,12 @@ import {
   IsNumber,
   IsUUID,
   Min,
-  Max,
   IsEnum,
 } from 'class-validator';
 import { VehicleStatus } from '../entities/vehicle.entity';
+import { LimitOffsetPaginationDto } from '../../../core/pagination/limit-offset-pagination.dto';
 
-export class SearchVehiclesDto {
+export class SearchVehiclesDto extends LimitOffsetPaginationDto {
   @IsOptional()
   @IsString()
   make?: string;
@@ -62,15 +62,4 @@ export class SearchVehiclesDto {
   @IsNumber()
   @Min(0)
   maxMileage?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(1)
-  @Max(100)
-  limit?: number = 20;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  offset?: number = 0;
 }

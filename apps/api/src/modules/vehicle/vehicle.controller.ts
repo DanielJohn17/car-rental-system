@@ -24,6 +24,7 @@ import { VehicleService } from './vehicle.service';
 import { JwtGuard } from '../auth/guards/jwt.guard';
 import { createRoleGuard } from '../auth/guards/role.guard';
 import { UserRole } from '../auth/entities/user.entity';
+import { LimitOffsetPaginationDto } from '../../core/pagination/limit-offset-pagination.dto';
 import {
   CreateVehicleDto,
   UpdateVehicleDto,
@@ -38,6 +39,9 @@ import { MaintenanceRecord } from './entities/maintenance-record.entity';
 
 const PUBLIC_SEARCH_TTL_MS = 60_000;
 const PUBLIC_SEARCH_LIMIT = 60;
+
+const AdminOrSalesGuard = createRoleGuard([UserRole.ADMIN, UserRole.SALES]);
+const AdminGuard = createRoleGuard([UserRole.ADMIN]);
 
 @ApiTags('vehicles')
 @Controller('vehicles')
@@ -124,7 +128,7 @@ export class VehicleController {
     type: Number,
     description: 'Results offset for pagination',
   })
-  async search(@Query() searchDto: SearchVehiclesDto) {
+  async search(@Query(ValidationPipe) searchDto: SearchVehiclesDto) {
     return this.vehicleService.search(searchDto);
   }
 
@@ -214,7 +218,7 @@ export class VehicleController {
    * Create vehicle (ADMIN/SALES only)
    */
   @Post()
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Create new vehicle (Admin/Sales only)' })
   @ApiBody({
     type: CreateVehicleDto,
@@ -258,7 +262,7 @@ export class VehicleController {
    * Get all vehicles with pagination (ADMIN/SALES only)
    */
   @Get()
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Get all vehicles (Admin/Sales only)' })
   @ApiQuery({
     name: 'limit',
@@ -272,18 +276,18 @@ export class VehicleController {
     type: Number,
     description: 'Results offset for pagination',
   })
-  async findAll(
-    @Query('limit') limit: string = '20',
-    @Query('offset') offset: string = '0',
-  ) {
-    return this.vehicleService.findAll(parseInt(limit), parseInt(offset));
+  async findAll(@Query(ValidationPipe) pagination: LimitOffsetPaginationDto) {
+    return this.vehicleService.findAll(
+      pagination.limit ?? 20,
+      pagination.offset ?? 0,
+    );
   }
 
   /**
    * Update vehicle (ADMIN/SALES only)
    */
   @Put(':id')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Update vehicle (Admin/Sales only)' })
   @ApiParam({ name: 'id', description: 'Vehicle UUID' })
   @ApiBody({ type: UpdateVehicleDto })
@@ -304,7 +308,7 @@ export class VehicleController {
    * Delete vehicle (ADMIN only)
    */
   @Delete(':id')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN]))
+  @UseGuards(JwtGuard, AdminGuard)
   @ApiOperation({ summary: 'Delete vehicle (Admin only)' })
   @ApiParam({ name: 'id', description: 'Vehicle UUID' })
   @ApiResponse({ status: 200, description: 'Vehicle deleted successfully' })
@@ -321,7 +325,7 @@ export class VehicleController {
    * Update vehicle status (ADMIN/SALES only)
    */
   @Put(':id/status')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Update vehicle status (Admin/Sales only)' })
   @ApiParam({ name: 'id', description: 'Vehicle UUID' })
   @ApiBody({
@@ -365,7 +369,7 @@ export class VehicleController {
    * Update vehicle mileage (ADMIN/SALES only)
    */
   @Put(':id/mileage')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({ summary: 'Update vehicle mileage (Admin/Sales only)' })
   @ApiParam({ name: 'id', description: 'Vehicle UUID' })
   @ApiBody({
@@ -409,7 +413,7 @@ export class VehicleController {
    * Get maintenance records for a vehicle (ADMIN/SALES only)
    */
   @Get(':id/maintenance')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({
     summary: 'Get maintenance records for vehicle (Admin/Sales only)',
   })
@@ -430,7 +434,7 @@ export class VehicleController {
    * Add maintenance record (ADMIN/SALES only)
    */
   @Post(':id/maintenance')
-  @UseGuards(JwtGuard, createRoleGuard([UserRole.ADMIN, UserRole.SALES]))
+  @UseGuards(JwtGuard, AdminOrSalesGuard)
   @ApiOperation({
     summary: 'Add maintenance record for vehicle (Admin/Sales only)',
   })

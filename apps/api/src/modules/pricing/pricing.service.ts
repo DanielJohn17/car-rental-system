@@ -2,7 +2,10 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vehicle } from '../vehicle/entities/vehicle.entity';
@@ -12,10 +15,13 @@ import { CalculatePricingDto, PricingBreakdownDto } from './dtos';
 export class PricingService {
   private readonly DEPOSIT_PERCENTAGE = 10;
   private readonly CURRENCY = 'USD';
+  private readonly pricingCacheTtlSeconds: number = 60;
 
   constructor(
     @InjectRepository(Vehicle)
     private vehicleRepository: Repository<Vehicle>,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
   ) {}
 
   /**
@@ -25,6 +31,11 @@ export class PricingService {
   async calculatePricing(
     calculateDto: CalculatePricingDto,
   ): Promise<PricingBreakdownDto> {
+    const cacheKey: string = `pricing:${calculateDto.vehicleId}:${calculateDto.startDate}:${calculateDto.endDate}`;
+    const cached = await this.cacheManager.get<PricingBreakdownDto>(cacheKey);
+    if (cached) {
+      return cached;
+    }
     // Validate vehicle exists
     const vehicle = await this.vehicleRepository.findOne({
       where: { id: calculateDto.vehicleId },
@@ -60,7 +71,7 @@ export class PricingService {
       Math.round(((basePrice * this.DEPOSIT_PERCENTAGE) / 100) * 100) / 100; // Round to 2 decimals
     const totalPrice = basePrice;
 
-    return {
+    const response: PricingBreakdownDto = {
       vehicleId: calculateDto.vehicleId,
       startDate: calculateDto.startDate,
       endDate: calculateDto.endDate,
@@ -72,6 +83,14 @@ export class PricingService {
       totalPrice: Math.round(totalPrice * 100) / 100,
       currency: this.CURRENCY,
     };
+
+    await this.cacheManager.set(
+      cacheKey,
+      response,
+      this.pricingCacheTtlSeconds,
+    );
+
+    return response;
   }
 
   /**

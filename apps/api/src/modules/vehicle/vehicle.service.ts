@@ -3,8 +3,11 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Repository, LessThan, MoreThan, In } from 'typeorm';
 import { Vehicle, VehicleStatus } from './entities/vehicle.entity';
 import {
@@ -18,6 +21,9 @@ import {
   SearchVehiclesDto,
   CheckAvailabilityDto,
 } from './dtos';
+import type { LimitOffsetPaginatedResponse } from '../../core/pagination/limit-offset-paginated-response.type';
+import { createLimitOffsetPaginatedResponse } from '../../core/pagination/create-limit-offset-paginated-response';
+import { normalizeLimitOffsetPagination } from '../../core/pagination/normalize-limit-offset-pagination';
 
 @Injectable()
 export class VehicleService {
@@ -28,7 +34,11 @@ export class VehicleService {
     private maintenanceRepository: Repository<MaintenanceRecord>,
     @InjectRepository(Booking)
     private bookingRepository: Repository<Booking>,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
   ) {}
+
+  private readonly publicSearchCacheTtlSeconds: number = 60;
 
   /**
    * Create a new vehicle (Admin/Sales only)
@@ -58,15 +68,21 @@ export class VehicleService {
   async findAll(
     limit: number = 20,
     offset: number = 0,
-  ): Promise<{ data: Vehicle[]; total: number }> {
+  ): Promise<LimitOffsetPaginatedResponse<Vehicle>> {
+    const pagination = normalizeLimitOffsetPagination({ limit, offset });
     const [data, total] = await this.vehicleRepository.findAndCount({
       relations: ['location', 'maintenanceRecords'],
-      take: limit,
-      skip: offset,
+      take: pagination.limit,
+      skip: pagination.offset,
       order: { createdAt: 'DESC' },
     });
 
-    return { data, total };
+    return createLimitOffsetPaginatedResponse({
+      data,
+      total,
+      limit: pagination.limit,
+      offset: pagination.offset,
+    });
   }
 
   /**
@@ -74,91 +90,118 @@ export class VehicleService {
    */
   async search(
     searchDto: SearchVehiclesDto,
-  ): Promise<{ data: Vehicle[]; total: number }> {
+  ): Promise<LimitOffsetPaginatedResponse<Vehicle>> {
+    const pagination = normalizeLimitOffsetPagination(searchDto);
+    const normalizedSearchDto: SearchVehiclesDto = {
+      ...searchDto,
+      limit: pagination.limit,
+      offset: pagination.offset,
+    };
+    const cacheKey: string = `vehicle:search:${JSON.stringify(normalizedSearchDto)}`;
+    const cached =
+      await this.cacheManager.get<LimitOffsetPaginatedResponse<Vehicle>>(
+        cacheKey,
+      );
+    if (cached) {
+      return cached;
+    }
     const query = this.vehicleRepository.createQueryBuilder('vehicle');
 
     // If status not specified, only show available vehicles for public search
-    if (!searchDto.status) {
+    if (!normalizedSearchDto.status) {
       query.where('vehicle.status = :status', {
         status: VehicleStatus.AVAILABLE,
       });
     } else {
-      query.where('vehicle.status = :status', { status: searchDto.status });
+      query.where('vehicle.status = :status', {
+        status: normalizedSearchDto.status,
+      });
     }
 
-    if (searchDto.make) {
+    if (normalizedSearchDto.make) {
       query.andWhere('LOWER(vehicle.make) LIKE LOWER(:make)', {
-        make: `%${searchDto.make}%`,
+        make: `%${normalizedSearchDto.make}%`,
       });
     }
 
-    if (searchDto.model) {
+    if (normalizedSearchDto.model) {
       query.andWhere('LOWER(vehicle.model) LIKE LOWER(:model)', {
-        model: `%${searchDto.model}%`,
+        model: `%${normalizedSearchDto.model}%`,
       });
     }
 
-    if (searchDto.color) {
+    if (normalizedSearchDto.color) {
       query.andWhere('LOWER(vehicle.color) LIKE LOWER(:color)', {
-        color: `%${searchDto.color}%`,
+        color: `%${normalizedSearchDto.color}%`,
       });
     }
 
-    if (searchDto.locationId) {
+    if (normalizedSearchDto.locationId) {
       query.andWhere('vehicle.locationId = :locationId', {
-        locationId: searchDto.locationId,
+        locationId: normalizedSearchDto.locationId,
       });
     }
 
-    if (searchDto.minDailyRate !== undefined) {
+    if (normalizedSearchDto.minDailyRate !== undefined) {
       query.andWhere('vehicle.dailyRate >= :minDailyRate', {
-        minDailyRate: searchDto.minDailyRate,
+        minDailyRate: normalizedSearchDto.minDailyRate,
       });
     }
 
-    if (searchDto.maxDailyRate !== undefined) {
+    if (normalizedSearchDto.maxDailyRate !== undefined) {
       query.andWhere('vehicle.dailyRate <= :maxDailyRate', {
-        maxDailyRate: searchDto.maxDailyRate,
+        maxDailyRate: normalizedSearchDto.maxDailyRate,
       });
     }
 
-    if (searchDto.fuelType) {
+    if (normalizedSearchDto.fuelType) {
       query.andWhere('vehicle.fuelType = :fuelType', {
-        fuelType: searchDto.fuelType,
+        fuelType: normalizedSearchDto.fuelType,
       });
     }
 
-    if (searchDto.transmission) {
+    if (normalizedSearchDto.transmission) {
       query.andWhere('vehicle.transmission = :transmission', {
-        transmission: searchDto.transmission,
+        transmission: normalizedSearchDto.transmission,
       });
     }
 
-    if (searchDto.minSeats !== undefined) {
+    if (normalizedSearchDto.minSeats !== undefined) {
       query.andWhere('vehicle.seats >= :minSeats', {
-        minSeats: searchDto.minSeats,
+        minSeats: normalizedSearchDto.minSeats,
       });
     }
 
-    if (searchDto.minMileage !== undefined) {
+    if (normalizedSearchDto.minMileage !== undefined) {
       query.andWhere('vehicle.mileage >= :minMileage', {
-        minMileage: searchDto.minMileage,
+        minMileage: normalizedSearchDto.minMileage,
       });
     }
 
-    if (searchDto.maxMileage !== undefined) {
+    if (normalizedSearchDto.maxMileage !== undefined) {
       query.andWhere('vehicle.mileage <= :maxMileage', {
-        maxMileage: searchDto.maxMileage,
+        maxMileage: normalizedSearchDto.maxMileage,
       });
     }
 
     query.leftJoinAndSelect('vehicle.location', 'location');
     query.orderBy('vehicle.createdAt', 'DESC');
-    query.take(searchDto.limit);
-    query.skip(searchDto.offset);
+    query.take(pagination.limit);
+    query.skip(pagination.offset);
 
     const [data, total] = await query.getManyAndCount();
-    return { data, total };
+    const response = createLimitOffsetPaginatedResponse({
+      data,
+      total,
+      limit: pagination.limit,
+      offset: pagination.offset,
+    });
+    await this.cacheManager.set(
+      cacheKey,
+      response,
+      this.publicSearchCacheTtlSeconds,
+    );
+    return response;
   }
 
   /**
@@ -311,41 +354,29 @@ export class VehicleService {
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    // Get all vehicles with AVAILABLE status at the location
+    const blockingStatuses: BookingStatus[] = [
+      BookingStatus.PENDING,
+      BookingStatus.APPROVED,
+      BookingStatus.ONGOING,
+    ];
+
     const query = this.vehicleRepository
       .createQueryBuilder('vehicle')
       .leftJoinAndSelect('vehicle.location', 'location')
-      .where('vehicle.status = :status', { status: VehicleStatus.AVAILABLE });
+      .leftJoin(
+        'vehicle.bookings',
+        'booking',
+        'booking.status IN (:...blockingStatuses) AND booking.startDateTime < :end AND booking.endDateTime > :start',
+        { blockingStatuses, start, end },
+      )
+      .where('vehicle.status = :status', { status: VehicleStatus.AVAILABLE })
+      .andWhere('booking.id IS NULL');
 
     if (locationId) {
       query.andWhere('vehicle.locationId = :locationId', { locationId });
     }
 
-    const vehicles = await query.getMany();
-
-    // Filter out vehicles with overlapping bookings
-    const availableVehicles: Vehicle[] = [];
-
-    for (const vehicle of vehicles) {
-      const overlappingBooking = await this.bookingRepository.findOne({
-        where: {
-          vehicleId: vehicle.id,
-          status: In([
-            BookingStatus.PENDING,
-            BookingStatus.APPROVED,
-            BookingStatus.ONGOING,
-          ]),
-          startDateTime: LessThan(end),
-          endDateTime: MoreThan(start),
-        },
-      });
-
-      if (!overlappingBooking) {
-        availableVehicles.push(vehicle);
-      }
-    }
-
-    return availableVehicles;
+    return query.getMany();
   }
 
   /**

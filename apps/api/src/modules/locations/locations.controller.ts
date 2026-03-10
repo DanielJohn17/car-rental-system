@@ -18,6 +18,7 @@ import {
 import { LocationsService } from './locations.service';
 import { Location } from './entities/location.entity';
 import { CreateLocationDto } from './dtos';
+import { LimitOffsetPaginationDto } from '../../core/pagination/limit-offset-pagination.dto';
 
 @ApiTags('locations')
 @Controller('locations')
@@ -42,11 +43,11 @@ export class LocationsController {
     description: 'Results offset for pagination',
   })
   @ApiResponse({ status: 200, description: 'List of locations' })
-  async findAll(
-    @Query('limit') limit: string = '100',
-    @Query('offset') offset: string = '0',
-  ) {
-    return this.locationsService.findAll(parseInt(limit), parseInt(offset));
+  async findAll(@Query(ValidationPipe) pagination: LimitOffsetPaginationDto) {
+    return this.locationsService.findAll(
+      pagination.limit ?? 100,
+      pagination.offset ?? 0,
+    );
   }
 
   /**
