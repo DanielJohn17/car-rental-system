@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiTags,
@@ -31,6 +32,9 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { UserRole } from './entities/user.entity';
 import type { JwtPayload } from './types/jwt-payload.type';
 
+const PUBLIC_AUTH_TTL_MS = 60_000;
+const PUBLIC_AUTH_LIMIT = 10;
+
 @ApiTags('Auth')
 @Controller('auth')
 /**
@@ -40,6 +44,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('register/admin')
+  @Throttle({ default: { ttl: PUBLIC_AUTH_TTL_MS, limit: PUBLIC_AUTH_LIMIT } })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Register admin (renter) account',
@@ -96,6 +101,7 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password' })
   @Post('login')
+  @Throttle({ default: { ttl: PUBLIC_AUTH_TTL_MS, limit: PUBLIC_AUTH_LIMIT } })
   @HttpCode(HttpStatus.OK)
   async login(
     @Body(ValidationPipe) loginDto: LoginDto,

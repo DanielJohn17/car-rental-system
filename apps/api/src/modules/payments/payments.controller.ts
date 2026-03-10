@@ -7,6 +7,7 @@ import {
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiTags,
   ApiOperation,
@@ -19,10 +20,10 @@ import { PaymentsService } from './payments.service';
 import { JwtGuard } from '../auth/guards/jwt.guard';
 import { createRoleGuard } from '../auth/guards/role.guard';
 import { UserRole } from '../auth/entities/user.entity';
-import {
-  CreatePaymentDto,
-  PaymentStatusDto,
-} from './dtos';
+import { CreatePaymentDto, PaymentStatusDto } from './dtos';
+
+const PUBLIC_PAYMENT_TTL_MS = 60_000;
+const PUBLIC_PAYMENT_LIMIT = 20;
 
 const SalesGuard = createRoleGuard([UserRole.SALES, UserRole.ADMIN]);
 
@@ -32,9 +33,7 @@ const SalesGuard = createRoleGuard([UserRole.SALES, UserRole.ADMIN]);
  * Payment management endpoints.
  */
 export class PaymentsController {
-  constructor(
-    private readonly paymentsService: PaymentsService,
-  ) {}
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   /**
    * Create a payment record
@@ -42,9 +41,13 @@ export class PaymentsController {
    * Public endpoint - no auth required
    */
   @Post()
+  @Throttle({
+    default: { ttl: PUBLIC_PAYMENT_TTL_MS, limit: PUBLIC_PAYMENT_LIMIT },
+  })
   @ApiOperation({
     summary: 'Create payment record',
-    description: 'Creates a payment record for a booking. Returns payment details. Public endpoint.',
+    description:
+      'Creates a payment record for a booking. Returns payment details. Public endpoint.',
   })
   @ApiBody({
     type: CreatePaymentDto,
@@ -112,7 +115,8 @@ export class PaymentsController {
   @ApiBearerAuth('JWT')
   @ApiOperation({
     summary: 'Get payment by booking ID',
-    description: 'Get payment details for a specific booking. Sales/Admin only.',
+    description:
+      'Get payment details for a specific booking. Sales/Admin only.',
   })
   @ApiParam({
     name: 'bookingId',
@@ -180,7 +184,8 @@ export class PaymentsController {
   @ApiBearerAuth('JWT')
   @ApiOperation({
     summary: 'Refund payment',
-    description: 'Refund a paid payment. Updates booking status back to PENDING. Sales/Admin only.',
+    description:
+      'Refund a paid payment. Updates booking status back to PENDING. Sales/Admin only.',
   })
   @ApiParam({
     name: 'bookingId',

@@ -9,6 +9,7 @@ import {
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiTags,
   ApiOperation,
@@ -31,6 +32,9 @@ import {
 } from './dtos';
 import { Booking, BookingStatus } from './entities/booking.entity';
 
+const PUBLIC_BOOKING_TTL_MS = 60_000;
+const PUBLIC_BOOKING_LIMIT = 20;
+
 @ApiTags('bookings')
 @Controller('bookings')
 export class BookingsController {
@@ -40,6 +44,9 @@ export class BookingsController {
    * Create booking (PUBLIC - anonymous)
    */
   @Post()
+  @Throttle({
+    default: { ttl: PUBLIC_BOOKING_TTL_MS, limit: PUBLIC_BOOKING_LIMIT },
+  })
   @ApiOperation({ summary: 'Create new booking (anonymous/public)' })
   @ApiBody({
     type: CreateBookingDto,

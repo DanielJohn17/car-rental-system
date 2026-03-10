@@ -11,6 +11,7 @@ import {
   BadRequestException,
   ValidationPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import {
   ApiQuery,
   ApiTags,
@@ -35,6 +36,9 @@ import {
 import { Vehicle, VehicleStatus } from './entities/vehicle.entity';
 import { MaintenanceRecord } from './entities/maintenance-record.entity';
 
+const PUBLIC_SEARCH_TTL_MS = 60_000;
+const PUBLIC_SEARCH_LIMIT = 60;
+
 @ApiTags('vehicles')
 @Controller('vehicles')
 export class VehicleController {
@@ -44,6 +48,9 @@ export class VehicleController {
    * Search vehicles with filters (PUBLIC)
    */
   @Get('search')
+  @Throttle({
+    default: { ttl: PUBLIC_SEARCH_TTL_MS, limit: PUBLIC_SEARCH_LIMIT },
+  })
   @ApiOperation({ summary: 'Search vehicles with filters' })
   @ApiQuery({
     name: 'make',
@@ -166,6 +173,9 @@ export class VehicleController {
    * Get available vehicles for date range (PUBLIC)
    */
   @Get('available/search')
+  @Throttle({
+    default: { ttl: PUBLIC_SEARCH_TTL_MS, limit: PUBLIC_SEARCH_LIMIT },
+  })
   @ApiOperation({ summary: 'Get available vehicles for date range' })
   @ApiQuery({
     name: 'startDate',
