@@ -52,7 +52,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
         return response;
       }
       if (response && typeof response === 'object' && 'message' in response) {
-        const message: unknown = (response as Record<string, unknown>)['message'];
+        const message: unknown = (response as Record<string, unknown>)[
+          'message'
+        ];
         if (typeof message === 'string' || Array.isArray(message)) {
           return message as string | string[];
         }

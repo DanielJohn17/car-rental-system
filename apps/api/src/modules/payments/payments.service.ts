@@ -12,10 +12,7 @@ import {
   PaymentMethod,
 } from './entities/payment.entity';
 import { Booking, BookingStatus } from '../bookings/entities/booking.entity';
-import {
-  CreatePaymentDto,
-  PaymentStatusDto,
-} from './dtos';
+import { CreatePaymentDto, PaymentStatusDto } from './dtos';
 
 const MANUAL_TRANSACTION_PREFIX = 'manual_' as const;
 
@@ -64,7 +61,9 @@ export class PaymentsService {
     requestedAmountInCents: number,
     bookingDepositAmount: number,
   ): void {
-    if (requestedAmountInCents !== Math.round(Number(bookingDepositAmount) * 100)) {
+    if (
+      requestedAmountInCents !== Math.round(Number(bookingDepositAmount) * 100)
+    ) {
       throw new BadRequestException(
         `Amount must match booking deposit amount (${bookingDepositAmount} USD)`,
       );
@@ -86,7 +85,10 @@ export class PaymentsService {
     }
 
     this.validateBookingPayable(booking);
-    this.validateDepositAmountMatches(createDto.amount, Number(booking.depositAmount));
+    this.validateDepositAmountMatches(
+      createDto.amount,
+      Number(booking.depositAmount),
+    );
 
     const existingPayment = await this.paymentRepository.findOne({
       where: { bookingId: createDto.bookingId },
@@ -140,9 +142,7 @@ export class PaymentsService {
       booking.status = BookingStatus.APPROVED;
       booking.paymentReference = payment.transactionId;
       await this.bookingRepository.save(booking);
-      this.logger.log(
-        `Payment confirmed and booking ${booking.id} approved`,
-      );
+      this.logger.log(`Payment confirmed and booking ${booking.id} approved`);
     }
 
     return this.mapToStatusDto(payment);

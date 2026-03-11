@@ -13,5 +13,7 @@ export const AppDataSource: DataSource = new DataSource({
   type: 'postgres',
   url: connectionUrl,
   entities: [path.resolve(process.cwd(), 'src/**/*.entity.ts')],
-  migrations: [path.resolve(process.cwd(), 'src/core/database/migrations/*.ts')],
+  migrations: [
+    path.resolve(process.cwd(), 'src/core/database/migrations/*.ts'),
+  ],
 });

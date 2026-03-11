@@ -21,7 +21,8 @@ export class HttpLoggingInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const httpContext = context.switchToHttp();
-    const req: RequestWithUserAndId = httpContext.getRequest<RequestWithUserAndId>();
+    const req: RequestWithUserAndId =
+      httpContext.getRequest<RequestWithUserAndId>();
     const res: Response = httpContext.getResponse<Response>();
     const startedAtMs: number = Date.now();
 
@@ -37,7 +38,11 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     );
   }
 
-  private logRequest(req: RequestWithUserAndId, res: Response, startedAtMs: number): void {
+  private logRequest(
+    req: RequestWithUserAndId,
+    res: Response,
+    startedAtMs: number,
+  ): void {
     const durationMs: number = Date.now() - startedAtMs;
     const statusCode: number = res.statusCode;
     const requestId: string | undefined = req.id;
