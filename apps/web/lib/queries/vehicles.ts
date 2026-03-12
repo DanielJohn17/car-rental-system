@@ -52,7 +52,7 @@ export type UpdateVehicleStatusData = {
 export const vehicleKeys = {
   all: ["vehicles"] as const,
   lists: () => [...vehicleKeys.all, "list"] as const,
-  list: (filters: Record<string, any>) =>
+  list: (filters: Record<string, unknown>) =>
     [...vehicleKeys.lists(), filters] as const,
   details: () => [...vehicleKeys.all, "detail"] as const,
   detail: (id: string) => [...vehicleKeys.details(), id] as const,
@@ -61,7 +61,7 @@ export const vehicleKeys = {
 // API functions
 const vehicleApi = {
   getVehicles: async (
-    params?: Record<string, any>,
+    params?: Record<string, unknown>,
   ): Promise<VehicleListResponse> => {
     return apiClient.get<VehicleListResponse>("/api/admin/vehicles", params);
   },
@@ -94,7 +94,7 @@ const vehicleApi = {
 };
 
 // Custom hooks
-export const useVehicles = (params?: Record<string, any>) => {
+export const useVehicles = (params?: Record<string, unknown>) => {
   return useQuery({
     queryKey: vehicleKeys.list(params || {}),
     queryFn: () => vehicleApi.getVehicles(params),

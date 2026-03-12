@@ -1,14 +1,20 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import Image from "next/image";
 import { Upload, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "./ui/button";
 import { Progress } from "./ui/progress";
-import { uploadToCloudinary, getOptimizedImageUrl } from "../lib/cloudinary";
+import {
+  uploadToCloudinary,
+  type CloudinaryUploadResult,
+} from "../lib/cloudinary";
 import { cn } from "../lib/utils";
 
 interface CloudinaryImageUploadProps {
-  onUploadComplete?: (result: any) => void;
+  onUploadComplete?: (
+    result: CloudinaryUploadResult | CloudinaryUploadResult[],
+  ) => void;
   onUploadError?: (error: string) => void;
   folder?: string;
   tags?: string[];
@@ -121,7 +127,10 @@ export function CloudinaryImageUpload({
         clearInterval(progressInterval);
         setProgress(100);
 
-        onUploadComplete?.(multiple ? results : results[0]);
+        const result = multiple ? results : results[0];
+        if (result) {
+          onUploadComplete?.(result);
+        }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Upload failed";
         setError(errorMsg);
@@ -221,9 +230,11 @@ export function CloudinaryImageUpload({
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {previews.map((preview, index) => (
               <div key={index} className="relative group">
-                <img
+                <Image
                   src={preview.url}
                   alt={`Preview ${index + 1}`}
+                  width={96}
+                  height={96}
                   className="h-24 w-24 rounded-md object-cover border"
                 />
                 {multiple && (

@@ -53,26 +53,16 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
+      /* eslint-disable react/prop-types */
       components={{
-        IconLeft: ({
-          className: iconClassName,
-          ...iconProps
-        }: React.SVGProps<SVGSVGElement>) => (
-          <ChevronLeft
-            className={cn("h-4 w-4", iconClassName)}
-            {...iconProps}
-          />
+        IconLeft: (props: React.SVGProps<SVGSVGElement>) => (
+          <ChevronLeft className={cn("h-4 w-4", props.className)} {...props} />
         ),
-        IconRight: ({
-          className: iconClassName,
-          ...iconProps
-        }: React.SVGProps<SVGSVGElement>) => (
-          <ChevronRight
-            className={cn("h-4 w-4", iconClassName)}
-            {...iconProps}
-          />
+        IconRight: (props: React.SVGProps<SVGSVGElement>) => (
+          <ChevronRight className={cn("h-4 w-4", props.className)} {...props} />
         ),
       }}
+      /* eslint-enable react/prop-types */
       {...props}
     />
   );

@@ -1,11 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  Suspense,
+} from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-export function RouteTransitionLoader({ className }: { className?: string }) {
+function LoaderContent({ className }: { className?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -142,5 +149,13 @@ export function RouteTransitionLoader({ className }: { className?: string }) {
         style={{ width: `${progress}%` }}
       />
     </div>
+  );
+}
+
+export function RouteTransitionLoader({ className }: { className?: string }) {
+  return (
+    <Suspense fallback={null}>
+      <LoaderContent className={className} />
+    </Suspense>
   );
 }

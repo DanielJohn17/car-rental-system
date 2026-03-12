@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Wifi, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface OfflineBannerProps {
@@ -9,22 +9,18 @@ interface OfflineBannerProps {
 }
 
 export function OfflineBanner({ onRetry }: OfflineBannerProps) {
-  const [isOnline, setIsOnline] = useState(true);
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => {
-      setIsOnline(true);
       setShowBanner(false);
     };
 
     const handleOffline = () => {
-      setIsOnline(false);
       setShowBanner(true);
     };
 
     // Check initial state
-    setIsOnline(navigator.onLine);
     setShowBanner(!navigator.onLine);
 
     window.addEventListener("online", handleOnline);

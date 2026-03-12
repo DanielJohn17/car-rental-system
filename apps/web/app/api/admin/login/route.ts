@@ -45,6 +45,7 @@ export async function POST(request: Request) {
   cookieStore.set("access_token", data.accessToken, {
     httpOnly: true,
     sameSite: "lax",
+    // eslint-disable-next-line turbo/no-undeclared-env-vars
     secure: process.env.NODE_ENV === "production",
     path: "/",
   });
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
   cookieStore.set("refresh_token", data.refreshToken, {
     httpOnly: true,
     sameSite: "lax",
+    // eslint-disable-next-line turbo/no-undeclared-env-vars
     secure: process.env.NODE_ENV === "production",
     path: "/",
   });

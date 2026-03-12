@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { InlineError } from "../../../../components/inline-error";
@@ -11,9 +11,9 @@ import {
   getResponseErrorMessage,
   toUserErrorMessage,
 } from "../../../../lib/errors";
-import { Sparkles } from "lucide-react";
+import { ArrowLeft, Car } from "lucide-react";
 
-export default function AdminLoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") ?? "/admin/dashboard";
@@ -52,107 +52,143 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center px-4 py-10">
-        <div className="w-full">
-          <div className="mb-8 flex flex-col items-center text-center">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-fuchsia-100 text-fuchsia-600">
-              <Sparkles className="h-6 w-6" />
-            </div>
-            <h1 className="text-xl font-semibold tracking-tight">
-              Welcome back
-            </h1>
+    <div className="w-full max-w-sm space-y-8">
+      <div className="flex flex-col items-center text-center space-y-2">
+        <Link href="/" className="mb-4 flex items-center gap-2 group">
+          <div className="bg-primary p-2 rounded-xl text-primary-foreground group-hover:scale-110 transition-transform">
+            <Car className="h-6 w-6" />
+          </div>
+          <span className="font-bold text-2xl tracking-tight">
+            Car<span className="text-primary">Rental</span>
+          </span>
+        </Link>
+        <h1 className="text-3xl font-extrabold tracking-tight">Welcome back</h1>
+        <p className="text-muted-foreground">
+          Enter your credentials to access your dashboard
+        </p>
+      </div>
+
+      <div className="grid gap-6">
+        <form onSubmit={onSubmit} className="grid gap-4">
+          <div className="space-y-2">
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              className="rounded-xl h-12 bg-muted/50 border-transparent focus:bg-background transition-all"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="rounded-xl h-12 bg-muted/50 border-transparent focus:bg-background transition-all"
+              required
+            />
           </div>
 
-          <div className="grid gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-10 w-full justify-center rounded-full"
-              disabled
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 48 48"
-                aria-hidden="true"
-              >
-                <path
-                  fill="#FFC107"
-                  d="M43.611 20.083H42V20H24v8h11.303C33.657 32.91 29.184 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.239 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.651-.389-3.917z"
-                />
-                <path
-                  fill="#FF3D00"
-                  d="M6.306 14.691l6.571 4.819C14.655 16.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.239 4 24 4c-7.682 0-14.346 4.328-17.694 10.691z"
-                />
-                <path
-                  fill="#4CAF50"
-                  d="M24 44c5.083 0 9.807-1.946 13.338-5.1l-6.162-5.214C29.2 35.215 26.725 36 24 36c-5.163 0-9.622-3.064-11.283-7.46l-6.52 5.024C9.505 39.782 16.227 44 24 44z"
-                />
-                <path
-                  fill="#1976D2"
-                  d="M43.611 20.083H42V20H24v8h11.303a12.05 12.05 0 0 1-4.127 5.686l.003-.002 6.162 5.214C36.904 39.292 44 34 44 24c0-1.341-.138-2.651-.389-3.917z"
-                />
-              </svg>
-              Continue with Google
-            </Button>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="h-12 w-full rounded-xl bg-primary text-primary-foreground font-bold shadow-lg shadow-primary/20 hover:shadow-xl transition-all active:scale-95"
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  or
-                </span>
-              </div>
-            </div>
+          <InlineError message={error} />
+        </form>
 
-            <form onSubmit={onSubmit} className="grid gap-3">
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter email"
-                className="rounded-full"
-              />
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                className="rounded-full"
-              />
-
-              <Button
-                type="submit"
-                disabled={loading}
-                className="h-10 w-full rounded-full bg-slate-900 text-white hover:bg-slate-900/90"
-              >
-                Continue
-              </Button>
-
-              <InlineError message={error} />
-            </form>
-
-            <p className="text-center text-xs text-muted-foreground">
-              By continuing, you agree to our Terms and Privacy Policy
-            </p>
-
-            <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link
-                className="text-primary hover:underline"
-                href="/admin/register"
-              >
-                Become a Renter
-              </Link>
-            </p>
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              Or continue with
+            </span>
           </div>
         </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="h-12 w-full justify-center rounded-xl border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors"
+          disabled
+        >
+          <svg
+            className="mr-2 h-4 w-4"
+            aria-hidden="true"
+            focusable="false"
+            data-prefix="fab"
+            data-icon="google"
+            role="img"
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 488 512"
+          >
+            <path
+              fill="currentColor"
+              d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"
+            ></path>
+          </svg>
+          Google
+        </Button>
+
+        <div className="space-y-4 pt-4">
+          <p className="text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link
+              className="font-bold text-primary hover:underline underline-offset-4"
+              href="/admin/register"
+            >
+              Become a Renter
+            </Link>
+          </p>
+
+          <Link
+            href="/"
+            className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to homepage
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden bg-background">
+      {/* Background decorations */}
+      <div className="absolute top-0 left-0 w-full h-full z-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-[120px]" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]" />
+      </div>
+
+      <main className="relative z-10 w-full max-w-md px-6 py-12 bg-background/50 backdrop-blur-sm sm:rounded-3xl sm:border sm:shadow-2xl sm:shadow-primary/5">
+        <Suspense
+          fallback={
+            <div className="w-full h-64 flex items-center justify-center">
+              <div className="h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          }
+        >
+          <LoginForm />
+        </Suspense>
       </main>
+
+      <footer className="relative z-10 mt-8 text-center text-xs text-muted-foreground">
+        <p>
+          © {new Date().getFullYear()} CarRental System. Secure Admin Access.
+        </p>
+      </footer>
     </div>
   );
 }

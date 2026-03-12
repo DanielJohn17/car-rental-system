@@ -1,7 +1,6 @@
 import { apiFetch } from "@/lib/api";
 import { toUserErrorMessage } from "@/lib/errors";
 import { PageContainer } from "@/components/page-container";
-import { SiteHeader } from "@/components/site-header";
 import { InlineError } from "@/components/inline-error";
 import { VehicleCard, type VehicleSummary } from "@/components/vehicle-card";
 import Link from "next/link";
@@ -11,6 +10,8 @@ import {
   VehicleFilters,
   type LocationOption,
 } from "@/components/vehicle-filters";
+import { FilterCloseButton } from "@/components/filter-close-button";
+import { Search, SlidersHorizontal } from "lucide-react";
 
 type VehicleSearchResponse = {
   data: VehicleSummary[];
@@ -132,25 +133,38 @@ export async function VehiclesBrowser({
   }));
 
   return (
-    <div>
-      <SiteHeader variant="inventory" showAdminCtas={false} />
-      <div className="bg-muted/30">
-        <PageContainer>
-          <div className="mb-6">
-            <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
+    <div className="min-h-screen bg-background">
+      <div className="relative">
+        <PageContainer className="py-12">
+          <div className="mb-10 text-center lg:text-left">
+            <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">
+              {title}
+            </h1>
             {subtitle ? (
-              <p className="mt-2 text-muted-foreground">{subtitle}</p>
-            ) : null}
+              <p className="mt-4 text-xl text-muted-foreground max-w-2xl mx-auto lg:mx-0">
+                {subtitle}
+              </p>
+            ) : (
+              <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto lg:mx-0">
+                Discover the perfect vehicle for your next journey. Filter by
+                make, model, or location to find your match.
+              </p>
+            )}
           </div>
 
-          <InlineError message={errorMessage} className="mb-4" />
+          <InlineError message={errorMessage} className="mb-8" />
 
-          <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
-            <div className="hidden lg:block lg:sticky lg:top-6">
+          <div className="grid gap-10 lg:grid-cols-[320px_1fr] lg:items-start">
+            <aside className="hidden lg:block lg:sticky lg:top-24 space-y-6">
+              <div className="flex items-center gap-2 mb-4 px-1">
+                <SlidersHorizontal className="h-5 w-5 text-primary" />
+                <h2 className="font-semibold text-lg">Filter Results</h2>
+              </div>
               <VehicleFilters
                 action={action}
                 variant="sidebar"
                 idPrefix="desktop-"
+                className="shadow-md border-border/40"
                 defaultValues={{
                   make,
                   model,
@@ -161,72 +175,85 @@ export async function VehiclesBrowser({
                 }}
                 locations={locationOptions}
               />
-            </div>
+            </aside>
 
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm text-muted-foreground">
-                  Total: {vehicles.total}
-                </div>
-
-                <div className="lg:hidden" />
-              </div>
-
-              <details className="group lg:hidden mt-3 rounded-lg border bg-card">
-                <summary className="flex cursor-pointer items-center justify-between gap-2 px-4 py-3 text-sm font-medium">
-                  <span>Filters</span>
-                  <span className="text-muted-foreground">
-                    <span className="group-open:hidden">Tap to open</span>
-                    <span className="hidden group-open:inline">Tap to close</span>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Showing {vehicles.data.length} of {vehicles.total} vehicles
                   </span>
-                </summary>
-                <div className="px-4 pb-4">
-                  <VehicleFilters
-                    action={action}
-                    variant="sidebar"
-                    idPrefix="mobile-"
-                    className="border-0 bg-transparent p-0"
-                    defaultValues={{
-                      make,
-                      model,
-                      status,
-                      locationId,
-                      startDate,
-                      endDate,
-                    }}
-                    locations={locationOptions}
-                  />
                 </div>
-              </details>
 
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {vehicles.data.map((v) => (
-                  <VehicleCard key={v.id} vehicle={v} />
-                ))}
+                <div className="lg:hidden">
+                  <details className="group">
+                    <summary className="flex cursor-pointer items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm font-medium hover:bg-muted transition-colors list-none shadow-sm">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      <span>Filters</span>
+                    </summary>
+                    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm lg:hidden group-open:block hidden" />
+                    <div className="fixed inset-x-4 top-[15%] z-50 max-h-[70vh] overflow-y-auto rounded-2xl border bg-card p-6 shadow-2xl lg:hidden group-open:block hidden animate-in zoom-in-95 duration-200">
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-lg font-bold">Filters</h2>
+                        <FilterCloseButton />
+                      </div>
+                      <VehicleFilters
+                        action={action}
+                        variant="sidebar"
+                        idPrefix="mobile-"
+                        className="border-0 bg-transparent p-0 shadow-none"
+                        defaultValues={{
+                          make,
+                          model,
+                          status,
+                          locationId,
+                          startDate,
+                          endDate,
+                        }}
+                        locations={locationOptions}
+                      />
+                    </div>
+                  </details>
+                </div>
               </div>
 
-              {vehicles.data.length === 0 ? (
-                <Card className="mt-6">
-                  <CardContent className="py-10">
-                    <div className="text-center">
-                      <div className="text-lg font-medium">
-                        No vehicles available
+              {vehicles.data.length > 0 ? (
+                <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                  {vehicles.data.map((v) => (
+                    <VehicleCard key={v.id} vehicle={v} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="border-dashed border-2 bg-muted/20">
+                  <CardContent className="py-16">
+                    <div className="text-center flex flex-col items-center gap-4">
+                      <div className="rounded-full bg-muted p-6">
+                        <Search className="h-10 w-10 text-muted-foreground" />
                       </div>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        Try adjusting your filters or selecting another location.
-                      </p>
-                      <div className="mt-4 flex flex-wrap justify-center gap-2">
-                        <Button asChild variant="outline">
-                          <Link href={action}>Reset filters</Link>
+                      <div>
+                        <h3 className="text-xl font-bold">No vehicles found</h3>
+                        <p className="mt-2 text-muted-foreground max-w-sm mx-auto">
+                          We couldn&apos;t find any vehicles matching your
+                          current filters. Try broadening your search.
+                        </p>
+                      </div>
+                      <div className="mt-4 flex flex-wrap justify-center gap-3">
+                        <Button
+                          asChild
+                          variant="outline"
+                          className="rounded-full"
+                        >
+                          <Link href={action}>Clear all filters</Link>
                         </Button>
-                        <Button asChild>
-                          <Link href="/vehicles">Browse all vehicles</Link>
+                        <Button asChild className="rounded-full">
+                          <Link href="/vehicles">Browse all fleet</Link>
                         </Button>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              ) : null}
+              )}
             </div>
           </div>
         </PageContainer>

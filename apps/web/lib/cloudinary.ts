@@ -1,6 +1,5 @@
 import { Cloudinary } from "@cloudinary/url-gen";
 import { fill } from "@cloudinary/url-gen/actions/resize";
-import { byRadius } from "@cloudinary/url-gen/actions/roundCorners";
 
 const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo";
 
@@ -16,7 +15,7 @@ export const cld = new Cloudinary({
 export interface CloudinaryUploadOptions {
   folder?: string;
   publicId?: string;
-  transformation?: any[];
+  transformation?: unknown[];
   tags?: string[];
   context?: Record<string, string>;
   uploadPreset?: string;
@@ -139,13 +138,7 @@ export function getOptimizedImageUrl(
     format?: string;
   } = {},
 ): string {
-  const {
-    width,
-    height,
-    crop = "fill",
-    quality = "auto",
-    format = "auto",
-  } = options;
+  const { width, height, quality = "auto", format = "auto" } = options;
 
   return cld
     .image(publicId)

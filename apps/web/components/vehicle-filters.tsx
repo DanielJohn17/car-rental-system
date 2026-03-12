@@ -201,7 +201,12 @@ export function VehicleFilters({
         ) : null}
       </div>
 
-      <div className={cn("flex items-center gap-2", variant === "bar" && "md:col-span-2")}>
+      <div
+        className={cn(
+          "flex items-center gap-2",
+          variant === "bar" && "md:col-span-2",
+        )}
+      >
         <Button type="submit" className="w-full">
           Search
         </Button>

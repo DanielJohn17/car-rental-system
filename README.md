@@ -170,4 +170,3 @@ Cloudinary variables must be set in `apps/web/.env.local`:
 
 - `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`
 - `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`
-

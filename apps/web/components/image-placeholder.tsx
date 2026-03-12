@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Car, User } from "lucide-react";
 
@@ -25,7 +26,6 @@ export function ImagePlaceholder({
 }: ImagePlaceholderProps) {
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
-  const imgRef = useRef<HTMLImageElement | null>(null);
 
   const sizeStyle = useMemo(() => {
     if (className) return undefined;
@@ -36,15 +36,6 @@ export function ImagePlaceholder({
     if (!src) return;
     setImageError(false);
     setImageLoading(true);
-  }, [src]);
-
-  useEffect(() => {
-    if (!src) return;
-    const img = imgRef.current;
-    if (!img) return;
-    if (img.complete && img.naturalWidth > 0) {
-      setImageLoading(false);
-    }
   }, [src]);
 
   const handleImageError = () => {
@@ -109,8 +100,7 @@ export function ImagePlaceholder({
           </div>
         </div>
       )}
-      <img
-        ref={imgRef}
+      <Image
         src={src}
         alt={alt}
         width={width}

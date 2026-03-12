@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 const Dialog = ({
   children,
   open,
-  onOpenChange,
 }: {
   children: React.ReactNode;
   open?: boolean;
@@ -35,13 +34,7 @@ const DialogPortal = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const DialogClose = ({
-  children,
-  onClick,
-}: {
-  children: React.ReactNode;
-  onClick?: () => void;
-}) => {
+const DialogClose = ({ onClick }: { onClick?: () => void }) => {
   return (
     <button
       onClick={onClick}
@@ -64,16 +57,19 @@ const DialogContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, children, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg",
-      className,
-    )}
-    {...props}
-  >
-    {children}
-  </div>
+  <DialogPortal>
+    <DialogOverlay />
+    <div
+      ref={ref}
+      className={cn(
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  </DialogPortal>
 ));
 DialogContent.displayName = "DialogContent";
 

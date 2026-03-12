@@ -17,7 +17,7 @@ export type LocationListResponse = {
 export const locationKeys = {
   all: ["locations"] as const,
   lists: () => [...locationKeys.all, "list"] as const,
-  list: (filters: Record<string, any>) =>
+  list: (filters: Record<string, unknown>) =>
     [...locationKeys.lists(), filters] as const,
   details: () => [...locationKeys.all, "detail"] as const,
   detail: (id: string) => [...locationKeys.details(), id] as const,
@@ -26,7 +26,7 @@ export const locationKeys = {
 // API functions
 const locationApi = {
   getLocations: async (
-    params?: Record<string, any>,
+    params?: Record<string, unknown>,
   ): Promise<LocationListResponse | Location[]> => {
     const response = await apiClient.get<LocationListResponse | Location[]>(
       "/api/public/locations",
@@ -41,7 +41,7 @@ const locationApi = {
 };
 
 // Custom hooks
-export const useLocations = (params?: Record<string, any>) => {
+export const useLocations = (params?: Record<string, unknown>) => {
   return useQuery({
     queryKey: locationKeys.list(params || {}),
     queryFn: () => locationApi.getLocations(params),
